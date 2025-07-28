@@ -465,29 +465,17 @@
             // FORCE localhost development mode - override any stored tunnel assignments
             console.log(`🔧 FORCING localhost development mode`);
             
-            // Map PKTRiot domains to stream IDs
-            const assignedTunnel = sessionStorage.getItem('assignedTunnel');
-            console.log(`🔍 Stored assignedTunnel: "${assignedTunnel}"`);
+            // SIMPLIFIED: Always use stream1 for single server testing
+            console.log(`🔧 SINGLE SERVER MODE: Always using stream1`);
             
-            let tunnelId = 'stream1'; // Default
-            if (assignedTunnel) {
-                if (assignedTunnel.includes('small-shape-93309')) tunnelId = 'stream1';
-                else if (assignedTunnel.includes('snowy-pond-27673')) tunnelId = 'stream2';
-                else if (assignedTunnel.includes('elastic-shape-41832')) tunnelId = 'stream3';
-                else if (assignedTunnel.includes('late-dawn-03260')) tunnelId = 'stream4';
-            }
-            console.log(`🔍 Mapped tunnelId: "${tunnelId}"`);
-            
-            const portMap = { 'stream1': 8001, 'stream2': 8002, 'stream3': 8003, 'stream4': 8004 };
-            const port = portMap[tunnelId] || 8001;
+            const tunnelId = 'stream1'; // Force stream1 for testing
+            const port = 8001; // Fixed port for stream1
             STREAMING_SERVER = `http://localhost:${port}`;
             console.log(`🔧 FORCED localhost development: Using ${STREAMING_SERVER} for ${tunnelId}`);
         } else {
-            // For production, use PKTRiot tunnels
-            STREAMING_SERVER = sessionStorage.getItem('assignedTunnel') 
-                ? `https://${sessionStorage.getItem('assignedTunnel')}` 
-                : MAIN_SERVER;
-            console.log(`🌐 Production mode: Using ${STREAMING_SERVER}`);
+            // For production, always use stream1 tunnel for single server testing
+            STREAMING_SERVER = 'https://small-shape-93309.pktriot.net';
+            console.log(`🌐 Production mode (SINGLE SERVER): Using ${STREAMING_SERVER}`);
         }
         
         // Legacy API_BASE_URL for backward compatibility (now points to main server)
