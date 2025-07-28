@@ -725,14 +725,20 @@
                     `📊 ${progress.completedFiles} completed • ${progress.visibleFiles} visible • ${progress.remainingFiles} remaining` :
                     `📁 ${fileCount} files available`;
                 
-                const filesHtml = collection.files.map(file => `
+                const filesHtml = collection.files.map(file => {
+                    const servingUrl = `${STREAMING_SERVER}/student/${encodeURIComponent(file.name)}`;
+                    return `
                     <div class="audio-file-item">
                         <div class="audio-title" style="flex: 1; font-weight: 500;">${file.name}</div>
+                        <div class="serving-url" style="font-size: 0.8em; color: #718096; margin-top: 4px;">
+                            🔗 Serving from: ${STREAMING_SERVER}/${file.name}
+                        </div>
                         <button class="play-btn" onclick="playAudio('${file.name}')">
                             ▶ Play
                         </button>
                     </div>
-                `).join('');
+                    `;
+                }).join('');
                 
                 return `
                     <div class="collection-panel">
@@ -763,6 +769,9 @@
             container.innerHTML = files.map((file, index) => `
                 <div class="audio-file-item">
                     <div class="audio-title" style="flex: 1; font-weight: 500;">${file.name}</div>
+                    <div class="serving-url" style="font-size: 0.8em; color: #718096; margin-top: 4px;">
+                        🔗 Serving from: ${STREAMING_SERVER}/${file.name}
+                    </div>
                     <button class="play-btn" onclick="playAudio('${file.name}')">
                         ▶ Play
                     </button>
