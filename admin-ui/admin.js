@@ -1391,3 +1391,164 @@ async function copyInvitationCode() {
         showAlert('Failed to copy invitation code. Please select and copy manually.', 'error');
     }
 }
+
+// System Management Functions
+
+// Restart all servers
+async function restartServers() {
+    const restartBtn = document.getElementById('restart-btn');
+    const statusDiv = document.getElementById('restart-status');
+    
+    if (!restartBtn || !statusDiv) {
+        console.error('Restart button or status div not found');
+        return;
+    }
+    
+    try {
+        // Disable button and show loading
+        restartBtn.disabled = true;
+        restartBtn.innerHTML = '🔄 Restarting...';
+        
+        statusDiv.style.display = 'block';
+        statusDiv.className = 'loading';
+        statusDiv.textContent = '⏳ Initiating server restart...';
+        
+        console.log('🔄 Sending restart request...');
+        
+        const response = await apiCall('/admin/restart-servers', 'POST');
+        
+        if (response.success) {
+            console.log('✅ Restart successful:', response);
+            
+            statusDiv.className = 'success';
+            statusDiv.innerHTML = `
+                <strong>✅ Success!</strong><br>
+                ${response.message}<br>
+                <small>All streaming servers have been restarted. Students should now be able to play audio files properly.</small>
+            `;
+            
+            // Refresh system status after restart
+            setTimeout(() => {
+                refreshSystemStatus();
+            }, 3000);
+            
+        } else {
+            throw new Error(response.error || 'Unknown restart error');
+        }
+        
+    } catch (error) {
+        console.error('❌ Restart failed:', error);
+        
+        statusDiv.className = 'error';
+        statusDiv.innerHTML = `
+            <strong>❌ Error!</strong><br>
+            ${error.message || 'Failed to restart servers'}<br>
+            <small>Please try again or contact system administrator.</small>
+        `;
+    } finally {
+        // Re-enable button
+        restartBtn.disabled = false;
+        restartBtn.innerHTML = '🔄 Restart All Servers';
+        
+        // Hide status after 10 seconds
+        setTimeout(() => {
+            statusDiv.style.display = 'none';
+        }, 10000);
+    }
+}
+
+// Refresh system status
+async function refreshSystemStatus() {
+    try {
+        console.log('🔄 Refreshing system status...');
+        
+        const mainStatusDiv = document.getElementById('main-server-status');
+        const streamingStatusDiv = document.getElementById('streaming-servers-status');
+        const sessionsDiv = document.getElementById('active-sessions-count');
+        
+        if (!mainStatusDiv || !streamingStatusDiv || !sessionsDiv) {
+            console.error('Status elements not found');
+            return;
+        }
+        
+        // Show loading state
+        mainStatusDiv.textContent = 'Checking...';
+        streamingStatusDiv.textContent = 'Checking...';
+        sessionsDiv.textContent = 'Loading...';
+        
+        const response = await apiCall('/admin/system-status', 'GET');
+        
+        if (response.success && response.status) {
+            const status = response.status;
+            
+            // Update main server status
+            mainStatusDiv.textContent = status.mainServer === 'online' ? '🟢 Online' : '🔴 Offline';
+            mainStatusDiv.style.color = status.mainServer === 'online' ? '#22543d' : '#742a2a';
+            mainStatusDiv.style.backgroundColor = status.mainServer === 'online' ? '#c6f6d5' : '#fed7d7';
+            
+            // Update streaming servers status
+            streamingStatusDiv.textContent = `🌐 ${status.streamingServers}`;
+            streamingStatusDiv.style.color = '#22543d';
+            streamingStatusDiv.style.backgroundColor = '#c6f6d5';
+            
+            // Update active sessions
+            sessionsDiv.textContent = `👥 ${status.activeUserSessions} active sessions`;
+            sessionsDiv.style.color = '#2a4365';
+            sessionsDiv.style.backgroundColor = '#bee3f8';
+            
+            console.log('✅ System status updated:', status);
+            
+        } else {
+            throw new Error(response.error || 'Failed to get system status');
+        }
+        
+    } catch (error) {
+        console.error('❌ Failed to refresh system status:', error);
+        
+        const statusElements = [
+            document.getElementById('main-server-status'),
+            document.getElementById('streaming-servers-status'),
+            document.getElementById('active-sessions-count')
+        ];
+        
+        statusElements.forEach(element => {
+            if (element) {
+                element.textContent = '❌ Error';
+                element.style.color = '#742a2a';
+                element.style.backgroundColor = '#fed7d7';
+            }
+        });
+    }
+}
+
+// Initialize system status when system tab is first loaded
+function initializeSystemTab() {
+    console.log('🔧 Initializing system tab...');
+    refreshSystemStatus();
+}
+
+// Override the original showTab function to handle system tab initialization
+const originalShowTab = window.showTab;
+window.showTab = function(tabName) {
+    // Call the original showTab function
+    if (originalShowTab) {
+        originalShowTab(tabName);
+    } else {
+        // Fallback implementation if original doesn't exist
+        document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+        
+        const activeTab = Array.from(document.querySelectorAll('.tab')).find(tab => 
+            tab.getAttribute('onclick').includes(`'${tabName}'`)
+        );
+        const activeContent = document.getElementById(tabName);
+        
+        if (activeTab) activeTab.classList.add('active');
+        if (activeContent) activeContent.classList.add('active');
+    }
+    
+    // Initialize system tab if it's being shown
+    if (tabName === 'system') {
+        setTimeout(initializeSystemTab, 100); // Small delay to ensure DOM is ready
+    }
+};

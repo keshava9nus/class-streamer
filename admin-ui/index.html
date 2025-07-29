@@ -207,10 +207,60 @@
 
         .status-indicator {
             display: inline-block;
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            margin-right: 8px;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+
+        .info-item {
+            margin-bottom: 15px;
+        }
+
+        .info-item label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #4a5568;
+        }
+
+        .btn-warning {
+            background-color: #f6ad55;
+            color: white;
+            border: none;
+        }
+
+        .btn-warning:hover {
+            background-color: #ed8936;
+        }
+
+        .btn-warning:disabled {
+            background-color: #cbd5e0;
+            cursor: not-allowed;
+        }
+
+        #restart-status {
+            padding: 10px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+
+        #restart-status.success {
+            background-color: #c6f6d5;
+            color: #22543d;
+            border: 1px solid #9ae6b4;
+        }
+
+        #restart-status.error {
+            background-color: #fed7d7;
+            color: #742a2a;
+            border: 1px solid #feb2b2;
+        }
+
+        #restart-status.loading {
+            background-color: #bee3f8;
+            color: #2a4365;
+            border: 1px solid #90cdf4;
         }
 
         .status-online {
@@ -358,6 +408,7 @@
             <button class="tab" onclick="showTab('schedules')">Schedules</button>
             <button class="tab" onclick="showTab('users')">Users</button>
             <button class="tab" onclick="showTab('assign-students')">Assign Students</button>
+            <button class="tab" onclick="showTab('system')">System</button>
             <button class="tab" onclick="showTab('settings')">Settings</button>
         </div>
 
@@ -590,6 +641,41 @@
                     Students who are currently assigned to you as their coordinator.
                 </p>
                 <div id="assigned-students-list">Loading your students...</div>
+            </div>
+        </div>
+
+        <!-- System Tab -->
+        <div id="system" class="tab-content">
+            <h2>System Management</h2>
+            
+            <div class="card">
+                <h3>Server Control</h3>
+                <p>Use this button to restart all audio streaming servers when students are experiencing playback issues.</p>
+                <button type="button" class="btn btn-warning" onclick="restartServers()" id="restart-btn">
+                    🔄 Restart All Servers
+                </button>
+                <div id="restart-status" style="margin-top: 10px; display: none;"></div>
+            </div>
+
+            <div class="card">
+                <h3>System Status</h3>
+                <div class="grid">
+                    <div class="info-item">
+                        <label>Main Server Status</label>
+                        <div id="main-server-status" class="status-indicator">Checking...</div>
+                    </div>
+                    <div class="info-item">
+                        <label>Streaming Servers Status</label>
+                        <div id="streaming-servers-status" class="status-indicator">Checking...</div>
+                    </div>
+                    <div class="info-item">
+                        <label>Active User Sessions</label>
+                        <div id="active-sessions-count" class="status-indicator">Loading...</div>
+                    </div>
+                </div>
+                <button type="button" class="btn btn-secondary" onclick="refreshSystemStatus()">
+                    🔄 Refresh Status
+                </button>
             </div>
         </div>
 
