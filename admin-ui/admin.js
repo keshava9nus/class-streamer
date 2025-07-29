@@ -6,12 +6,47 @@ let API_BASE = window.location.hostname === 'localhost' || window.location.hostn
 
 let workingPort = null;
 
-// Function to find working port
+// Function to find working port by reading from port files
 async function findWorkingPort() {
     if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-        const ports = [8000, 8001, 8002, 8003, 8004, 8005];
+        // Define fallback ports
+        const fallbackPorts = [8002, 8000, 8001, 8003, 8004, 8005];
         
-        for (const port of ports) {
+        try {
+            // First, try to get the main server port from the admin endpoint
+            const mainPortResponse = await fetch(`http://localhost:${fallbackPorts[0]}/admin/main-server-port`, { 
+                signal: AbortSignal.timeout(2000) 
+            });
+            
+            if (mainPortResponse.ok) {
+                const mainPortText = await mainPortResponse.text();
+                const mainPort = parseInt(mainPortText.trim());
+                
+                if (mainPort && !isNaN(mainPort)) {
+                    console.log(`📁 Found main server port from endpoint: ${mainPort}`);
+                    const mainServerUrl = `http://localhost:${mainPort}`;
+                    
+                    // Test if this port actually works
+                    const healthResponse = await fetch(`${mainServerUrl}/api/health`, { 
+                        signal: AbortSignal.timeout(2000) 
+                    });
+                    
+                    if (healthResponse.ok) {
+                        workingPort = mainPort;
+                        API_BASE = mainServerUrl;
+                        console.log(`✅ Main server confirmed working on port ${mainPort}`);
+                        return mainServerUrl;
+                    }
+                }
+            }
+        } catch (error) {
+            console.log('⚠️ Could not get main server port from endpoint, falling back to discovery');
+        }
+        
+        // Fallback: Try common ports if endpoint method fails
+        console.log(`🔍 Port file method failed, trying discovery on ports: ${fallbackPorts.join(', ')}`);
+        
+        for (const port of fallbackPorts) {
             try {
                 const testUrl = `http://localhost:${port}`;
                 const response = await fetch(`${testUrl}/api/health`, { 
@@ -24,7 +59,7 @@ async function findWorkingPort() {
                 if (response.ok) {
                     workingPort = port;
                     API_BASE = testUrl;
-                    console.log(`✅ Found working server on port ${port}`);
+                    console.log(`✅ Found working server on port ${port} via discovery`);
                     return testUrl;
                 }
             } catch (error) {
