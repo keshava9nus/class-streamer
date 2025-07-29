@@ -1183,12 +1183,36 @@
             return await response.json();
         }
 
-        function logout() {
-            // Clear both session and local storage
-            sessionStorage.clear();
+        async function logout() {
+            try {
+                // Call server logout endpoint with the auth token
+                const token = sessionStorage.getItem('authToken');
+                if (token) {
+                    await fetch(`${getServerUrl('/student/logout')}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        credentials: 'include'
+                    });
+                }
+                
+                console.log(`🚪 Server-side logout completed`);
+            } catch (error) {
+                console.error('Server logout failed:', error);
+                // Continue with client-side cleanup even if server call fails
+            }
+            
+            // Clear client-side storage (specific items only)
+            sessionStorage.removeItem('authToken');
+            sessionStorage.removeItem('currentUser');
+            sessionStorage.removeItem('userEmail');
+            sessionStorage.removeItem('assignedTunnel');
             localStorage.removeItem('authToken');
             localStorage.removeItem('assignedTunnel');
-            console.log(`🚪 User logged out, storage cleared`);
+            
+            console.log(`🚪 Client-side storage cleared`);
             window.location.href = 'login.html';
         }
 
