@@ -74,11 +74,62 @@ async function findWorkingPort() {
 let config = {};
 let currentTab = 'dashboard';
 
+// Mobile-friendly storage helper
+function getStorageItem(key) {
+    try {
+        return localStorage.getItem(key) || sessionStorage.getItem(key);
+    } catch (error) {
+        console.warn('Storage access failed, trying sessionStorage only:', error);
+        try {
+            return sessionStorage.getItem(key);
+        } catch (sessionError) {
+            console.error('Both localStorage and sessionStorage failed:', sessionError);
+            return null;
+        }
+    }
+}
+
+function setStorageItem(key, value) {
+    try {
+        localStorage.setItem(key, value);
+    } catch (error) {
+        console.warn('localStorage failed, using sessionStorage:', error);
+        try {
+            sessionStorage.setItem(key, value);
+        } catch (sessionError) {
+            console.error('Both storage methods failed:', sessionError);
+        }
+    }
+}
+
 // Initialize the admin panel
 document.addEventListener('DOMContentLoaded', async function() {
-    // Check if admin is authenticated
-    const adminToken = localStorage.getItem('adminToken');
+    // Log browser info for mobile debugging
+    console.log('Browser info:', {
+        userAgent: navigator.userAgent,
+        hostname: window.location.hostname,
+        protocol: window.location.protocol,
+        storageSupport: {
+            localStorage: typeof(Storage) !== "undefined" && window.localStorage,
+            sessionStorage: typeof(Storage) !== "undefined" && window.sessionStorage
+        }
+    });
+    
+    // Check if admin is authenticated with mobile-friendly fallbacks
+    let adminToken;
+    try {
+        // Test localStorage availability (fails in mobile private browsing)
+        localStorage.setItem('test', 'test');
+        localStorage.removeItem('test');
+        adminToken = localStorage.getItem('adminToken');
+    } catch (error) {
+        console.error('localStorage not available (mobile private browsing?):', error);
+        // Fallback to sessionStorage for mobile private browsing
+        adminToken = sessionStorage.getItem('adminToken');
+    }
+    
     if (!adminToken) {
+        console.log('No admin token found, redirecting to login');
         window.location.href = '../admin-login.html';
         return;
     }
@@ -848,7 +899,7 @@ async function checkServerStatus() {
 
 function updateCurrentTime() {
     const now = new Date();
-    const timezone = config.settings?.timezone || 'America/New_York';
+    const timezone = config.settings?.timezone || 'Asia/Kolkata';
     
     try {
         const timeString = now.toLocaleString('en-US', {

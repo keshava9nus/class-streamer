@@ -266,11 +266,20 @@
                 
                 if (response.ok && result.success) {
                     showAlert('Login successful! Redirecting...', 'success');
-                    // Store admin token and info
-                    localStorage.setItem('adminToken', result.token);
-                    localStorage.setItem('userRole', 'admin');
-                    localStorage.setItem('adminId', result.admin.adminId);
-                    localStorage.setItem('adminName', result.admin.name);
+                    // Store admin token and info with mobile-friendly fallback
+                    try {
+                        localStorage.setItem('adminToken', result.token);
+                        localStorage.setItem('userRole', 'admin');
+                        localStorage.setItem('adminId', result.admin.adminId);
+                        localStorage.setItem('adminName', result.admin.name);
+                    } catch (error) {
+                        console.warn('localStorage not available, using sessionStorage (mobile private browsing?)');
+                        // Fallback to sessionStorage for mobile private browsing
+                        sessionStorage.setItem('adminToken', result.token);
+                        sessionStorage.setItem('userRole', 'admin');
+                        sessionStorage.setItem('adminId', result.admin.adminId);
+                        sessionStorage.setItem('adminName', result.admin.name);
+                    }
                     setTimeout(() => {
                         window.location.href = 'admin-ui/index.html';
                     }, 1000);
