@@ -225,7 +225,7 @@
     <script>
         // Auto-detect server URL
         const SERVER_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
-            ? 'http://localhost:8000' 
+            ? 'http://localhost:8002' 
             : 'https://misty-sunset-29095.pktriot.net';
 
         const form = document.getElementById('super-admin-form');
@@ -254,7 +254,7 @@
             loginBtn.textContent = 'Signing In...';
 
             try {
-                const response = await fetch(`${SERVER_URL}/super-admin/authenticate`, {
+                const response = await fetch(`${SERVER_URL}/auth/super-admin/authenticate`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

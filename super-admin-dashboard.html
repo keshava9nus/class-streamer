@@ -368,7 +368,7 @@
     <script>
         // Auto-detect server URL
         const SERVER_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
-            ? 'http://localhost:8000' 
+            ? 'http://localhost:8002' 
             : 'https://misty-sunset-29095.pktriot.net';
 
         let token = localStorage.getItem('superAdminToken');
@@ -405,7 +405,7 @@
         async function loadDashboard() {
             try {
                 // Load dashboard stats
-                const statsResponse = await fetch(`${SERVER_URL}/super-admin/dashboard`, {
+                const statsResponse = await fetch(`${SERVER_URL}/auth/super-admin/dashboard`, {
                     headers: authHeaders
                 });
 
@@ -465,7 +465,7 @@
 
         async function loadAdmins() {
             try {
-                const response = await fetch(`${SERVER_URL}/super-admin/admins`, {
+                const response = await fetch(`${SERVER_URL}/auth/super-admin/admins`, {
                     headers: authHeaders
                 });
                 const admins = await response.json();
@@ -513,7 +513,7 @@
 
         async function loadStudents() {
             try {
-                const response = await fetch(`${SERVER_URL}/super-admin/students`, {
+                const response = await fetch(`${SERVER_URL}/auth/super-admin/students`, {
                     headers: authHeaders
                 });
                 const students = await response.json();
@@ -556,7 +556,7 @@
 
         async function loadCollections() {
             try {
-                const response = await fetch(`${SERVER_URL}/super-admin/collections`, {
+                const response = await fetch(`${SERVER_URL}/auth/super-admin/collections`, {
                     headers: authHeaders
                 });
                 const collections = await response.json();
@@ -591,7 +591,7 @@
 
         async function loadSchedules() {
             try {
-                const response = await fetch(`${SERVER_URL}/super-admin/schedules`, {
+                const response = await fetch(`${SERVER_URL}/auth/super-admin/schedules`, {
                     headers: authHeaders
                 });
                 const schedules = await response.json();
@@ -632,7 +632,7 @@
 
         async function loadSettings() {
             try {
-                const response = await fetch(`${SERVER_URL}/super-admin/system-settings`, {
+                const response = await fetch(`${SERVER_URL}/auth/super-admin/system-settings`, {
                     headers: authHeaders
                 });
                 const settings = await response.json();
@@ -705,7 +705,7 @@
 
         async function updateAdminSecret(newSecret) {
             try {
-                const response = await fetch(`${SERVER_URL}/super-admin/system-settings`, {
+                const response = await fetch(`${SERVER_URL}/auth/super-admin/system-settings`, {
                     method: 'POST',
                     headers: {
                         ...authHeaders,
@@ -732,7 +732,7 @@
 
         async function toggleAdmin(adminId, isCurrentlyActive) {
             try {
-                const response = await fetch(`${SERVER_URL}/super-admin/admin/${adminId}/toggle`, {
+                const response = await fetch(`${SERVER_URL}/auth/super-admin/admin/${adminId}/toggle`, {
                     method: 'POST',
                     headers: authHeaders
                 });
