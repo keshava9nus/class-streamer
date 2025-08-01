@@ -227,25 +227,29 @@
                 if (response.ok) {
                     showAlert('Login successful! Redirecting...', 'success');
                     
-                    // Extract user info from token for user-specific storage
-                    const payload = JSON.parse(atob(result.token.split('.')[1]));
-                    const userKey = `user_${payload.studentId}`;
+                    // Use student data from response instead of parsing token (API key compatible)
+                    const student = result.student;
+                    const userKey = `user_${student.studentId}`;
                     
                     // Store token in sessionStorage (tab-specific) + localStorage (persistent)
                     sessionStorage.setItem('authToken', result.token);
                     sessionStorage.setItem('currentUser', userKey);
-                    sessionStorage.setItem('userEmail', payload.email);
+                    sessionStorage.setItem('userEmail', student.email);
+                    sessionStorage.setItem('studentId', student.studentId);
+                    sessionStorage.setItem('studentName', student.name);
                     
                     // Also store in localStorage for persistence (user-specific keys)
                     localStorage.setItem(`${userKey}_token`, result.token);
-                    localStorage.setItem(`${userKey}_email`, payload.email);
+                    localStorage.setItem(`${userKey}_email`, student.email);
+                    localStorage.setItem(`${userKey}_studentId`, student.studentId);
+                    localStorage.setItem(`${userKey}_name`, student.name);
                     
                     // Store assigned tunnel for streaming server routing
                     if (result.assignedTunnel && result.assignedTunnel.tunnelUrl) {
                         sessionStorage.setItem('assignedTunnel', result.assignedTunnel.tunnelUrl);
                         localStorage.setItem(`${userKey}_tunnel`, result.assignedTunnel.tunnelUrl);
-                        console.log(`🎯 User ${payload.email} assigned to tunnel: ${result.assignedTunnel.tunnelUrl}`);
-                        console.log(`🔐 Tab-isolated session created for ${payload.email}`);
+                        console.log(`🎯 User ${student.email} assigned to tunnel: ${result.assignedTunnel.tunnelUrl}`);
+                        console.log(`🔐 Tab-isolated session created for ${student.email}`);
                     }
                     
                     setTimeout(() => {

@@ -429,19 +429,29 @@
             }
         }
         
-        // Extract user info from token
+        // Extract user info from sessionStorage (API key compatible)
         if (userToken) {
             try {
-                const payload = JSON.parse(atob(userToken.split('.')[1]));
-                if (!userKey) {
-                    userKey = `user_${payload.studentId}`;
+                // Try to get user info from sessionStorage first (API key compatible)
+                let userEmail = sessionStorage.getItem('userEmail');
+                let studentId = sessionStorage.getItem('studentId');
+                
+                // Fallback: try to parse as JWT token if sessionStorage is empty
+                if (!userEmail && userToken.includes('.')) {
+                    const payload = JSON.parse(atob(userToken.split('.')[1]));
+                    userEmail = payload.email;
+                    studentId = payload.studentId;
+                }
+                
+                if (!userKey && studentId) {
+                    userKey = `user_${studentId}`;
                     sessionStorage.setItem('currentUser', userKey);
                 }
                 
-                console.log(`🔍 Session ID: ${sessionId}, User: ${payload.email}, UserKey: ${userKey}`);
-                console.log(`🔐 Tab-isolated session active for ${payload.email}`);
+                console.log(`🔍 Session ID: ${sessionId}, User: ${userEmail}, UserKey: ${userKey}`);
+                console.log(`🔐 Tab-isolated session active for ${userEmail}`);
             } catch (e) {
-                console.error('Failed to parse token for user key:', e);
+                console.error('Failed to extract user info:', e);
             }
         }
 
@@ -889,11 +899,11 @@
                     await currentAudioContext.resume();
                 }
 
-                // Fetch audio data with additional protection headers
+                // Fetch audio data with API key authentication
                 const response = await fetch(url, {
                     method: 'GET',
                     headers: {
-                        'Authorization': `Bearer ${sessionStorage.getItem('authToken')}`,
+                        'X-API-Key': sessionStorage.getItem('authToken'),
                         'X-Audio-Protection': 'encrypted-stream',
                         'X-Requested-With': 'XMLHttpRequest'
                     },
@@ -1155,12 +1165,25 @@
 
         async function apiCall(endpoint, method = 'GET', data = null) {
             const token = sessionStorage.getItem('authToken') || localStorage.getItem('authToken');
+            const serverUrl = getServerUrl(endpoint);
+            
+            // Determine authentication method based on target server
+            const isStreamingServer = serverUrl === STREAMING_SERVER;
+            const headers = {
+                'Content-Type': 'application/json'
+            };
+            
+            if (isStreamingServer) {
+                // Use X-API-Key for streaming server requests
+                headers['X-API-Key'] = token;
+            } else {
+                // Use Authorization Bearer for main server requests
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+            
             const options = {
                 method,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
+                headers,
                 credentials: 'include'
             };
             
@@ -1168,7 +1191,6 @@
                 options.body = JSON.stringify(data);
             }
             
-            const serverUrl = getServerUrl(endpoint);
             const response = await fetch(`${serverUrl}${endpoint}`, options);
             
             if (response.status === 401) {
