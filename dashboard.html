@@ -553,15 +553,29 @@
 
         async function loadDashboard() {
             try {
-                // Get user info from token
+                // Get user info from sessionStorage (API key compatible)
                 const token = sessionStorage.getItem('authToken');
                 if (token) {
-                    try {
-                        const payload = JSON.parse(atob(token.split('.')[1]));
-                        currentUser = { name: payload.name, email: payload.email };
+                    // Try to get user info from sessionStorage first (API key compatible)
+                    let userName = sessionStorage.getItem('studentName');
+                    let userEmail = sessionStorage.getItem('userEmail');
+                    
+                    // Fallback: try to parse as JWT token if sessionStorage is empty
+                    if (!userName && token.includes('.')) {
+                        try {
+                            const payload = JSON.parse(atob(token.split('.')[1]));
+                            userName = payload.name;
+                            userEmail = payload.email;
+                        } catch (e) {
+                            console.error('Failed to parse JWT token:', e);
+                        }
+                    }
+                    
+                    if (userName && userEmail) {
+                        currentUser = { name: userName, email: userEmail };
                         document.getElementById('user-name').textContent = currentUser.name;
-                    } catch (e) {
-                        console.error('Failed to parse token:', e);
+                    } else {
+                        console.error('No user info available');
                         logout();
                         return;
                     }
@@ -1177,7 +1191,7 @@
                 // Use X-API-Key for streaming server requests
                 headers['X-API-Key'] = token;
             } else {
-                // Use Authorization Bearer for main server requests
+                // Use Authorization Bearer for main server requests (now supports both JWT and API keys)
                 headers['Authorization'] = `Bearer ${token}`;
             }
             
