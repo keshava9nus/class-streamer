@@ -457,7 +457,7 @@
 
         // Multi-server architecture configuration
         const MAIN_SERVER_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
-            ? 'http://localhost:8000' 
+            ? 'http://localhost:8002' 
             : 'https://misty-sunset-29095.pktriot.net';
         
         // For GitHub Pages deployment, override with your actual server URL
@@ -522,6 +522,12 @@
         
         // Update streaming server from tunnel assignment
         function updateStreamingServer(assignedTunnel) {
+            // Override: In localhost development mode, always use local streaming server
+            if (isLocalhost) {
+                console.log(`🔧 LOCALHOST MODE: Ignoring tunnel assignment, keeping local streaming server: ${STREAMING_SERVER}`);
+                return;
+            }
+            
             if (assignedTunnel) {
                 STREAMING_SERVER = `https://${assignedTunnel}`;
                 sessionStorage.setItem('assignedTunnel', assignedTunnel);
@@ -828,7 +834,7 @@
             
             // Construct URL dynamically if not provided
             if (!audioUrl) {
-                audioUrl = `${STREAMING_SERVER}/student/${encodeURIComponent(fileName)}`;
+                audioUrl = `${STREAMING_SERVER}/${encodeURIComponent(fileName)}`;
                 console.log(`🔧 Constructed URL dynamically: "${audioUrl}"`);
             }
             

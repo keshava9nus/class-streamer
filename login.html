@@ -195,7 +195,7 @@
         
         if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
             // Local development
-            API_BASE_URL = 'http://localhost:8000';
+            API_BASE_URL = 'http://localhost:8002';
         } else if (window.location.hostname.includes('github.io')) {
             // GitHub Pages deployment
             API_BASE_URL = 'https://misty-sunset-29095.pktriot.net';
@@ -244,12 +244,15 @@
                     localStorage.setItem(`${userKey}_studentId`, student.studentId);
                     localStorage.setItem(`${userKey}_name`, student.name);
                     
-                    // Store assigned tunnel for streaming server routing
-                    if (result.assignedTunnel && result.assignedTunnel.tunnelUrl) {
+                    // Store assigned tunnel for streaming server routing (only in production)
+                    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+                    if (result.assignedTunnel && result.assignedTunnel.tunnelUrl && !isLocalhost) {
                         sessionStorage.setItem('assignedTunnel', result.assignedTunnel.tunnelUrl);
                         localStorage.setItem(`${userKey}_tunnel`, result.assignedTunnel.tunnelUrl);
                         console.log(`🎯 User ${student.email} assigned to tunnel: ${result.assignedTunnel.tunnelUrl}`);
                         console.log(`🔐 Tab-isolated session created for ${student.email}`);
+                    } else if (isLocalhost) {
+                        console.log(`🔧 LOCALHOST MODE: Ignoring tunnel assignment, will use local streaming server`);
                     }
                     
                     setTimeout(() => {
