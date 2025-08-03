@@ -335,7 +335,10 @@
                                 throw new Error('All localhost ports failed - server may not be running');
                             }
                         } else {
-                            throw new Error('Failed to connect to server - check your internet connection or try again later');
+                            // Show special message for tunnel connectivity issues
+                            const errorMsg = 'The server tunnel is not accessible from your network. This may be due to ISP restrictions, firewall blocks, or network configuration.';
+                            const solutionLink = '<br><br><a href="proxy-login.html" style="color: #fff; text-decoration: underline;">🔧 Try Alternative Login Method</a>';
+                            throw new Error(errorMsg + solutionLink);
                         }
                     } else {
                         throw fetchError;
