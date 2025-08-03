@@ -2,7 +2,7 @@
 // Auto-detect API base URL based on current location
 let API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
     ? 'http://localhost:8002' 
-    : 'https://misty-sunset-29095.pktriot.net';
+    : 'https://delicate-lake-85886.pktriot.net';
 
 let workingPort = null;
 

@@ -458,11 +458,11 @@
         // Multi-server architecture configuration
         const MAIN_SERVER_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
             ? 'http://localhost:8002' 
-            : 'https://misty-sunset-29095.pktriot.net';
+            : 'https://delicate-lake-85886.pktriot.net';
         
         // For GitHub Pages deployment, override with your actual server URL
         const isGitHubPages = window.location.hostname.includes('github.io');
-        const MAIN_SERVER = isGitHubPages ? 'https://misty-sunset-29095.pktriot.net' : MAIN_SERVER_URL;
+        const MAIN_SERVER = isGitHubPages ? 'https://delicate-lake-85886.pktriot.net' : MAIN_SERVER_URL;
         
         // Streaming server URL - FORCE localhost for development debugging
         let STREAMING_SERVER;
