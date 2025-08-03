@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Login Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; border-radius: 5px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .info { background-color: #d1ecf1; border-color: #bee5eb; }
+        button { padding: 10px 15px; margin: 5px; cursor: pointer; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 3px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>Admin Authentication Test</h1>
+    
+    <div class="test-section info">
+        <h3>Current Storage State</h3>
+        <div id="storage-info"></div>
+        <button onclick="checkStorage()">Refresh Storage Info</button>
+        <button onclick="clearStorage()">Clear All Storage</button>
+    </div>
+    
+    <div class="test-section">
+        <h3>Manual Login Test</h3>
+        <input type="email" id="test-email" placeholder="Admin Email" style="width: 200px; padding: 5px;">
+        <input type="password" id="test-password" placeholder="Password" style="width: 200px; padding: 5px;">
+        <button onclick="testLogin()">Test Login</button>
+        <div id="login-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>Redirect Test</h3>
+        <button onclick="testRedirect()">Test Redirect to Admin UI</button>
+        <button onclick="testDirectAccess()">Test Direct Admin UI Access</button>
+    </div>
+    
+    <div class="test-section">
+        <h3>Debug Log</h3>
+        <button onclick="clearLog()">Clear Log</button>
+        <pre id="debug-log"></pre>
+    </div>
+
+    <script>
+        let debugLog = [];
+        
+        function log(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = `[${timestamp}] ${message}`;
+            debugLog.push(logEntry);
+            document.getElementById('debug-log').textContent = debugLog.join('\n');
+            console.log(logEntry);
+        }
+        
+        function clearLog() {
+            debugLog = [];
+            document.getElementById('debug-log').textContent = '';
+        }
+        
+        function checkStorage() {
+            const storageInfo = {
+                localStorage: {},
+                sessionStorage: {},
+                browserInfo: {
+                    userAgent: navigator.userAgent,
+                    cookiesEnabled: navigator.cookieEnabled,
+                    storageSupported: typeof(Storage) !== "undefined"
+                }
+            };
+            
+            // Check localStorage
+            try {
+                for (let key in localStorage) {
+                    if (localStorage.hasOwnProperty(key)) {
+                        storageInfo.localStorage[key] = localStorage.getItem(key);
+                    }
+                }
+            } catch (error) {
+                storageInfo.localStorage.error = error.message;
+            }
+            
+            // Check sessionStorage
+            try {
+                for (let key in sessionStorage) {
+                    if (sessionStorage.hasOwnProperty(key)) {
+                        storageInfo.sessionStorage[key] = sessionStorage.getItem(key);
+                    }
+                }
+            } catch (error) {
+                storageInfo.sessionStorage.error = error.message;
+            }
+            
+            document.getElementById('storage-info').innerHTML = `<pre>${JSON.stringify(storageInfo, null, 2)}</pre>`;
+            log('Storage info updated');
+        }
+        
+        function clearStorage() {
+            try {
+                localStorage.clear();
+                sessionStorage.clear();
+                log('All storage cleared');
+                checkStorage();
+            } catch (error) {
+                log('Error clearing storage: ' + error.message);
+            }
+        }
+        
+        async function testLogin() {
+            const email = document.getElementById('test-email').value;
+            const password = document.getElementById('test-password').value;
+            
+            if (!email || !password) {
+                document.getElementById('login-result').innerHTML = '<div class="error">Please enter email and password</div>';
+                return;
+            }
+            
+            log(`Testing login for: ${email}`);
+            
+            try {
+                const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+                    ? 'http://localhost:8002'
+                    : 'https://misty-sunset-29095.pktriot.net';
+                
+                log(`Using API base: ${API_BASE_URL}`);
+                
+                const response = await fetch(`${API_BASE_URL}/auth/admin/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({ email, password })
+                });
+                
+                const result = await response.json();
+                log(`Login response: ${response.status} ${response.statusText}`);
+                log(`Response data: ${JSON.stringify(result, null, 2)}`);
+                
+                if (response.ok && result.success) {
+                    // Store the token
+                    try {
+                        localStorage.setItem('adminToken', result.token);
+                        localStorage.setItem('userRole', 'admin');
+                        localStorage.setItem('adminId', result.admin.adminId);
+                        localStorage.setItem('adminName', result.admin.name);
+                        log('Token stored successfully in localStorage');
+                    } catch (error) {
+                        log('localStorage failed, trying sessionStorage: ' + error.message);
+                        sessionStorage.setItem('adminToken', result.token);
+                        sessionStorage.setItem('userRole', 'admin');
+                        sessionStorage.setItem('adminId', result.admin.adminId);
+                        sessionStorage.setItem('adminName', result.admin.name);
+                        log('Token stored in sessionStorage');
+                    }
+                    
+                    document.getElementById('login-result').innerHTML = '<div class="success">✅ Login successful! Token stored.</div>';
+                    checkStorage();
+                } else {
+                    document.getElementById('login-result').innerHTML = `<div class="error">❌ Login failed: ${result.message || result.error}</div>`;
+                    log(`Login failed: ${result.message || result.error}`);
+                }
+            } catch (error) {
+                log('Login error: ' + error.message);
+                document.getElementById('login-result').innerHTML = `<div class="error">❌ Network error: ${error.message}</div>`;
+            }
+        }
+        
+        function testRedirect() {
+            log('Testing redirect to admin-ui/index.html');
+            try {
+                window.location.href = 'admin-ui/index.html';
+            } catch (error) {
+                log('Redirect failed: ' + error.message);
+            }
+        }
+        
+        function testDirectAccess() {
+            log('Opening admin UI in new tab');
+            try {
+                window.open('admin-ui/index.html', '_blank');
+            } catch (error) {
+                log('Direct access failed: ' + error.message);
+            }
+        }
+        
+        // Initialize
+        window.addEventListener('load', function() {
+            log('Admin test page loaded');
+            checkStorage();
+        });
+    </script>
+</body>
+</html>

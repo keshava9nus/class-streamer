@@ -265,26 +265,74 @@
                 const result = await response.json();
                 
                 if (response.ok && result.success) {
+                    console.log('✅ Login successful, storing data and redirecting...', result);
                     showAlert('Login successful! Redirecting...', 'success');
-                    // Store admin token and info with mobile-friendly fallback
+                    
+                    // Store admin token and info with enhanced error handling
+                    let storageSuccess = false;
                     try {
                         localStorage.setItem('adminToken', result.token);
                         localStorage.setItem('userRole', 'admin');
                         localStorage.setItem('adminId', result.admin.adminId);
                         localStorage.setItem('adminName', result.admin.name);
+                        localStorage.setItem('adminEmail', result.admin.email);
+                        console.log('✅ Data stored in localStorage');
+                        storageSuccess = true;
                     } catch (error) {
-                        console.warn('localStorage not available, using sessionStorage (mobile private browsing?)');
-                        // Fallback to sessionStorage for mobile private browsing
-                        sessionStorage.setItem('adminToken', result.token);
-                        sessionStorage.setItem('userRole', 'admin');
-                        sessionStorage.setItem('adminId', result.admin.adminId);
-                        sessionStorage.setItem('adminName', result.admin.name);
+                        console.warn('⚠️ localStorage failed, trying sessionStorage:', error);
+                        try {
+                            // Fallback to sessionStorage for mobile private browsing
+                            sessionStorage.setItem('adminToken', result.token);
+                            sessionStorage.setItem('userRole', 'admin');
+                            sessionStorage.setItem('adminId', result.admin.adminId);
+                            sessionStorage.setItem('adminName', result.admin.name);
+                            sessionStorage.setItem('adminEmail', result.admin.email);
+                            console.log('✅ Data stored in sessionStorage');
+                            storageSuccess = true;
+                        } catch (sessionError) {
+                            console.error('❌ Both localStorage and sessionStorage failed:', sessionError);
+                            showAlert('Warning: Storage not available. You may need to login again.', 'warning');
+                        }
                     }
-                    setTimeout(() => {
-                        window.location.href = 'admin-ui/index.html';
-                    }, 1000);
+                    
+                    // Enhanced redirect with multiple fallback methods
+                    const redirectToAdmin = () => {
+                        console.log('🔄 Attempting redirect to admin panel...');
+                        try {
+                            // Method 1: Standard href redirect
+                            window.location.href = 'admin-ui/index.html';
+                        } catch (redirectError) {
+                            console.error('❌ Standard redirect failed, trying alternative:', redirectError);
+                            try {
+                                // Method 2: Location replace (no history entry)
+                                window.location.replace('admin-ui/index.html');
+                            } catch (replaceError) {
+                                console.error('❌ Replace redirect failed, trying assign:', replaceError);
+                                try {
+                                    // Method 3: Location assign
+                                    window.location.assign('admin-ui/index.html');
+                                } catch (assignError) {
+                                    console.error('❌ All redirect methods failed:', assignError);
+                                    showAlert('Redirect failed. Please manually navigate to the admin panel.', 'error');
+                                    // Show manual link as last resort
+                                    setTimeout(() => {
+                                        const linkElement = document.createElement('a');
+                                        linkElement.href = 'admin-ui/index.html';
+                                        linkElement.textContent = 'Click here to access Admin Panel';
+                                        linkElement.style.cssText = 'display: block; text-align: center; margin: 20px; padding: 10px; background: #4CAF50; color: white; text-decoration: none; border-radius: 5px;';
+                                        document.body.appendChild(linkElement);
+                                    }, 2000);
+                                }
+                            }
+                        }
+                    };
+                    
+                    // Delay redirect to ensure storage completion and show success message
+                    setTimeout(redirectToAdmin, 1500);
+                    
                 } else {
-                    showAlert(result.message || 'Invalid email or password', 'error');
+                    console.error('❌ Login failed:', result);
+                    showAlert(result.message || result.error || 'Invalid email or password', 'error');
                 }
             } catch (error) {
                 console.error('Login error:', error);
@@ -310,5 +358,8 @@
             document.getElementById('admin-login-form').style.display = show ? 'none' : 'block';
         }
     </script>
+    
+    <!-- Browser Compatibility Detection -->
+    <script src="js/browser-compatibility.js"></script>
 </body>
 </html>
