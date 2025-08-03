@@ -136,6 +136,12 @@
             border: 1px solid #f5c6cb;
         }
 
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
         .loading {
             display: none;
             text-align: center;
@@ -201,7 +207,8 @@
 
         <div class="form-links">
             <a href="admin-register.html">Don't have an account? Register</a> |
-            <a href="login.html">Student Login</a>
+            <a href="login.html">Student Login</a> |
+            <button onclick="testConnection()" style="background: none; border: none; color: #667eea; text-decoration: underline; cursor: pointer;">Test Connection</button>
         </div>
     </div>
 
@@ -238,12 +245,13 @@
             showLoading(true);
             
             try {
-                // Auto-detect API base URL
-                // Auto-detect API base URL based on current location
+                // Auto-detect API base URL with enhanced detection
                 let API_BASE_URL;
+                let isLocalhost = false;
                 
                 if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-                    // Local development
+                    // Local development - try multiple ports
+                    isLocalhost = true;
                     API_BASE_URL = 'http://localhost:8002';
                 } else if (window.location.hostname.includes('github.io')) {
                     // GitHub Pages deployment
@@ -253,16 +261,94 @@
                     API_BASE_URL = 'https://misty-sunset-29095.pktriot.net';
                 }
                 
-                const response = await fetch(`${API_BASE_URL}/auth/admin/login`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    credentials: 'include',
-                    body: JSON.stringify({ email, password })
-                });
+                console.log(`🔗 Attempting login to: ${API_BASE_URL}`);
+                console.log(`📍 Current location: ${window.location.hostname}`);
+                console.log(`🌐 Browser online status: ${navigator.onLine}`);
                 
-                const result = await response.json();
+                // Create fetch with timeout and enhanced error handling
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => {
+                    controller.abort();
+                    console.error('⏰ Request timed out after 15 seconds');
+                }, 15000); // 15 second timeout
+                
+                let response;
+                try {
+                    response = await fetch(`${API_BASE_URL}/auth/admin/login`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        },
+                        credentials: 'include',
+                        body: JSON.stringify({ email, password }),
+                        signal: controller.signal
+                    });
+                    
+                    clearTimeout(timeoutId);
+                    console.log(`📡 Response received: ${response.status} ${response.statusText}`);
+                    
+                } catch (fetchError) {
+                    clearTimeout(timeoutId);
+                    
+                    if (fetchError.name === 'AbortError') {
+                        throw new Error('Connection timeout - server may be unreachable or overloaded');
+                    } else if (fetchError.message.includes('ERR_CONNECTION_TIMED_OUT')) {
+                        throw new Error('Connection timed out - check your internet connection');
+                    } else if (fetchError.message.includes('ERR_CONNECTION_REFUSED')) {
+                        throw new Error('Connection refused - server may be down');
+                    } else if (fetchError.message.includes('ERR_NETWORK')) {
+                        throw new Error('Network error - check your internet connection');
+                    } else if (fetchError.message.includes('Failed to fetch')) {
+                        // Try alternative URLs for localhost
+                        if (isLocalhost) {
+                            console.log('🔄 Primary localhost URL failed, trying alternative ports...');
+                            const alternativePorts = [8000, 8001, 8003, 8004];
+                            for (const port of alternativePorts) {
+                                try {
+                                    console.log(`🔄 Trying port ${port}...`);
+                                    const altController = new AbortController();
+                                    const altTimeoutId = setTimeout(() => altController.abort(), 5000);
+                                    
+                                    response = await fetch(`http://localhost:${port}/auth/admin/login`, {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/json',
+                                            'Accept': 'application/json'
+                                        },
+                                        credentials: 'include',
+                                        body: JSON.stringify({ email, password }),
+                                        signal: altController.signal
+                                    });
+                                    
+                                    clearTimeout(altTimeoutId);
+                                    console.log(`✅ Alternative port ${port} worked!`);
+                                    API_BASE_URL = `http://localhost:${port}`;
+                                    break;
+                                } catch (altError) {
+                                    console.log(`❌ Port ${port} failed: ${altError.message}`);
+                                    continue;
+                                }
+                            }
+                            
+                            if (!response) {
+                                throw new Error('All localhost ports failed - server may not be running');
+                            }
+                        } else {
+                            throw new Error('Failed to connect to server - check your internet connection or try again later');
+                        }
+                    } else {
+                        throw fetchError;
+                    }
+                }
+                
+                let result;
+                try {
+                    result = await response.json();
+                } catch (parseError) {
+                    console.error('❌ Failed to parse server response:', parseError);
+                    throw new Error(`Server returned invalid response (${response.status})`);
+                }
                 
                 if (response.ok && result.success) {
                     console.log('✅ Login successful, storing data and redirecting...', result);
@@ -335,8 +421,42 @@
                     showAlert(result.message || result.error || 'Invalid email or password', 'error');
                 }
             } catch (error) {
-                console.error('Login error:', error);
-                showAlert('Login failed. Please check if the server is running.', 'error');
+                console.error('❌ Login error:', error);
+                
+                // Enhanced error messages for different failure types
+                let errorMessage = 'Login failed: ';
+                let troubleshooting = '';
+                
+                if (error.message.includes('timeout') || error.message.includes('ERR_CONNECTION_TIMED_OUT')) {
+                    errorMessage += 'Connection timeout';
+                    troubleshooting = 'Try: 1) Check internet connection 2) Refresh page 3) Wait a moment and try again';
+                } else if (error.message.includes('Connection refused') || error.message.includes('server may be down')) {
+                    errorMessage += 'Server not responding';
+                    troubleshooting = 'The server may be temporarily unavailable. Please try again in a few minutes.';
+                } else if (error.message.includes('Failed to connect') || error.message.includes('Failed to fetch')) {
+                    errorMessage += 'Cannot connect to server';
+                    troubleshooting = 'Check: 1) Internet connection 2) VPN/firewall settings 3) Try different browser';
+                } else if (error.message.includes('localhost ports failed')) {
+                    errorMessage += 'Local server not running';
+                    troubleshooting = 'Start the server with: npm run pm2:start';
+                } else if (error.message.includes('Invalid response')) {
+                    errorMessage += 'Server error';
+                    troubleshooting = 'The server returned an unexpected response. Please try again.';
+                } else {
+                    errorMessage += error.message;
+                    troubleshooting = 'Please check your internet connection and try again.';
+                }
+                
+                showAlert(errorMessage, 'error');
+                
+                if (troubleshooting) {
+                    setTimeout(() => {
+                        const alertDiv = document.getElementById('alert');
+                        if (alertDiv && alertDiv.style.display !== 'none') {
+                            alertDiv.innerHTML += `<br><small style="opacity: 0.8;">💡 ${troubleshooting}</small>`;
+                        }
+                    }, 1000);
+                }
             }
             
             showLoading(false);
@@ -356,6 +476,109 @@
         function showLoading(show) {
             document.getElementById('loading').style.display = show ? 'block' : 'none';
             document.getElementById('admin-login-form').style.display = show ? 'none' : 'block';
+        }
+        
+        async function testConnection() {
+            console.log('🔧 Testing server connection...');
+            showAlert('Testing connection...', 'info');
+            
+            const tests = [];
+            
+            // Test 1: Check if we're online
+            tests.push({
+                name: 'Internet Connection',
+                test: () => Promise.resolve(navigator.onLine),
+                expected: true
+            });
+            
+            // Test 2: Determine API URL
+            let API_BASE_URL;
+            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                API_BASE_URL = 'http://localhost:8002';
+            } else {
+                API_BASE_URL = 'https://misty-sunset-29095.pktriot.net';
+            }
+            
+            // Test 3: Health check
+            tests.push({
+                name: 'Server Health Check',
+                test: async () => {
+                    const controller = new AbortController();
+                    setTimeout(() => controller.abort(), 10000);
+                    
+                    const response = await fetch(`${API_BASE_URL}/api/health`, {
+                        signal: controller.signal,
+                        credentials: 'include'
+                    });
+                    return response.ok;
+                },
+                expected: true
+            });
+            
+            // Test 4: CORS check
+            tests.push({
+                name: 'CORS Configuration',
+                test: async () => {
+                    const controller = new AbortController();
+                    setTimeout(() => controller.abort(), 10000);
+                    
+                    const response = await fetch(`${API_BASE_URL}/api/compatibility`, {
+                        signal: controller.signal,
+                        credentials: 'include'
+                    });
+                    return response.ok;
+                },
+                expected: true
+            });
+            
+            let results = [];
+            for (const test of tests) {
+                try {
+                    const result = await test.test();
+                    results.push({
+                        name: test.name,
+                        passed: result === test.expected,
+                        result: result
+                    });
+                    console.log(`${result === test.expected ? '✅' : '❌'} ${test.name}: ${result}`);
+                } catch (error) {
+                    results.push({
+                        name: test.name,
+                        passed: false,
+                        error: error.message
+                    });
+                    console.log(`❌ ${test.name}: ${error.message}`);
+                }
+            }
+            
+            // Display results
+            const passedTests = results.filter(r => r.passed).length;
+            const totalTests = results.length;
+            
+            let message = `Connection Test Results: ${passedTests}/${totalTests} passed\n\n`;
+            let recommendations = [];
+            
+            results.forEach(result => {
+                message += `${result.passed ? '✅' : '❌'} ${result.name}\n`;
+                if (!result.passed) {
+                    if (result.name === 'Internet Connection') {
+                        recommendations.push('Check your internet connection');
+                    } else if (result.name === 'Server Health Check') {
+                        recommendations.push('Server may be down - try again later or contact support');
+                    } else if (result.name === 'CORS Configuration') {
+                        recommendations.push('Try a different browser or disable browser extensions');
+                    }
+                }
+            });
+            
+            if (recommendations.length > 0) {
+                message += '\nRecommendations:\n' + recommendations.map(r => `• ${r}`).join('\n');
+            }
+            
+            const alertType = passedTests === totalTests ? 'success' : 'error';
+            showAlert(message.replace(/\n/g, '<br>'), alertType);
+            
+            console.log('🔧 Connection test completed');
         }
     </script>
     
