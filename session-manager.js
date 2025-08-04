@@ -11,7 +11,7 @@ class SessionManager {
         this.heartbeatInterval = null;
         this.heartbeatFrequency = 30000; // 30 seconds
         this.isInitialized = false;
-        this.mainServerUrl = 'https://delicate-lake-85886.pktriot.net'; // Main server URL
+        this.mainServerUrl = 'https://api.suprexon.space'; // Main server URL
         
         // Bind methods to preserve context
         this.handleBeforeUnload = this.handleBeforeUnload.bind(this);

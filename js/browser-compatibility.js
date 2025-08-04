@@ -12,7 +12,7 @@ class BrowserCompatibilityChecker {
         if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
             return 'http://localhost:8002';
         }
-        return 'https://delicate-lake-85886.pktriot.net';
+        return 'https://api.suprexon.space';
     }
 
     // Initialize compatibility checking

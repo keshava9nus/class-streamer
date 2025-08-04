@@ -2,7 +2,7 @@
 // Auto-detect API base URL based on current location
 let API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
     ? 'http://localhost:8002' 
-    : 'https://delicate-lake-85886.pktriot.net';
+    : 'https://api.suprexon.space';
 
 let workingPort = null;
 
