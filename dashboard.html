@@ -458,11 +458,11 @@
         // Multi-server architecture configuration
         const MAIN_SERVER_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
             ? 'http://localhost:8002' 
-            : 'https://delicate-lake-85886.pktriot.net';
+            : 'https://api.suprexon.space';
         
         // For GitHub Pages deployment, override with your actual server URL
         const isGitHubPages = window.location.hostname.includes('github.io');
-        const MAIN_SERVER = isGitHubPages ? 'https://delicate-lake-85886.pktriot.net' : MAIN_SERVER_URL;
+        const MAIN_SERVER = isGitHubPages ? 'https://api.suprexon.space' : MAIN_SERVER_URL;
         
         // Streaming server URL - FORCE localhost for development debugging
         let STREAMING_SERVER;
@@ -483,9 +483,9 @@
             STREAMING_SERVER = `http://localhost:${port}`;
             console.log(`🔧 FORCED localhost development: Using ${STREAMING_SERVER} for ${tunnelId}`);
         } else {
-            // For production, always use stream1 tunnel for single server testing
-            STREAMING_SERVER = 'https://small-shape-93309.pktriot.net';
-            console.log(`🌐 Production mode (SINGLE SERVER): Using ${STREAMING_SERVER}`);
+            // For production, use custom domain to avoid ISP blocking
+            STREAMING_SERVER = 'https://stream1.suprexon.space';
+            console.log(`🌐 Production mode: Using custom domain for audio streaming`);
         }
         
         // Legacy API_BASE_URL for backward compatibility (now points to main server)
@@ -522,13 +522,27 @@
         
         // Update streaming server from tunnel assignment
         function updateStreamingServer(assignedTunnel) {
-            // Override: In localhost development mode, always use local streaming server
+            // Override: In localhost development mode, map to local ports
             if (isLocalhost) {
-                console.log(`🔧 LOCALHOST MODE: Ignoring tunnel assignment, keeping local streaming server: ${STREAMING_SERVER}`);
+                const domainToPortMap = {
+                    'stream1.suprexon.space': 8001,
+                    'stream2.suprexon.space': 8003,
+                    'stream3.suprexon.space': 8004,
+                    'stream4.suprexon.space': 8005
+                };
+                
+                const port = domainToPortMap[assignedTunnel];
+                if (port) {
+                    STREAMING_SERVER = `http://localhost:${port}`;
+                    console.log(`🔧 LOCALHOST MODE: Mapped ${assignedTunnel} to ${STREAMING_SERVER}`);
+                } else {
+                    console.log(`🔧 LOCALHOST MODE: Unknown tunnel ${assignedTunnel}, keeping current server: ${STREAMING_SERVER}`);
+                }
                 return;
             }
             
             if (assignedTunnel) {
+                // Production mode: Use the suprexon.space domain directly
                 STREAMING_SERVER = `https://${assignedTunnel}`;
                 sessionStorage.setItem('assignedTunnel', assignedTunnel);
                 console.log(`🎯 Streaming server updated: ${STREAMING_SERVER}`);
@@ -599,23 +613,23 @@
                         const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
                         
                         if (isLocalhost) {
-                            // Development mode: Map domains to localhost ports
+                            // Development mode: Map suprexon.space domains to localhost ports
                             const domainToPortMap = {
-                                'classstreamer2.mediastreamer.app': 8002,
-                                'classstreamer3.mediastreamer.app': 8003,
-                                'classstreamer4.mediastreamer.app': 8004,
-                                'classstreamer5.mediastreamer.app': 8005
+                                'stream1.suprexon.space': 8001,
+                                'stream2.suprexon.space': 8003,
+                                'stream3.suprexon.space': 8004,
+                                'stream4.suprexon.space': 8005
                             };
                             
                             const port = domainToPortMap[studentInfo.assignedStreamingServer];
                             if (port) {
                                 STREAMING_SERVER_URL = `http://localhost:${port}`;
                             } else {
-                                // Fallback to main server if mapping not found
-                                STREAMING_SERVER_URL = MAIN_SERVER_URL;
+                                // Fallback to stream1 if mapping not found
+                                STREAMING_SERVER_URL = 'http://localhost:8001';
                             }
                         } else {
-                            // Production mode: Use the actual domain with https
+                            // Production mode: Use the suprexon.space domain with https
                             STREAMING_SERVER_URL = `https://${studentInfo.assignedStreamingServer}`;
                         }
                         
