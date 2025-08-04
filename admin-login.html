@@ -255,10 +255,10 @@
                     API_BASE_URL = 'http://localhost:8002';
                 } else if (window.location.hostname.includes('github.io')) {
                     // GitHub Pages deployment
-                    API_BASE_URL = 'https://delicate-lake-85886.pktriot.net';
+                    API_BASE_URL = 'https://helpful-panda-c36ca6.netlify.app/.netlify/functions';
                 } else {
                     // Other deployments (fallback)
-                    API_BASE_URL = 'https://delicate-lake-85886.pktriot.net';
+                    API_BASE_URL = 'https://helpful-panda-c36ca6.netlify.app/.netlify/functions';
                 }
                 
                 console.log(`🔗 Attempting login to: ${API_BASE_URL}`);
@@ -274,7 +274,7 @@
                 
                 let response;
                 try {
-                    response = await fetch(`${API_BASE_URL}/auth/admin/login`, {
+                    response = await fetch(`${API_BASE_URL}/admin-login`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
@@ -310,7 +310,7 @@
                                     const altController = new AbortController();
                                     const altTimeoutId = setTimeout(() => altController.abort(), 5000);
                                     
-                                    response = await fetch(`http://localhost:${port}/auth/admin/login`, {
+                                    response = await fetch(`http://localhost:${port}/admin-login`, {
                                         method: 'POST',
                                         headers: {
                                             'Content-Type': 'application/json',
@@ -499,7 +499,7 @@
             if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
                 API_BASE_URL = 'http://localhost:8002';
             } else {
-                API_BASE_URL = 'https://delicate-lake-85886.pktriot.net';
+                API_BASE_URL = 'https://helpful-panda-c36ca6.netlify.app/.netlify/functions';
             }
             
             // Test 3: Health check
