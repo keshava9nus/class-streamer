@@ -254,7 +254,7 @@
             loginBtn.textContent = 'Signing In...';
 
             try {
-                const response = await fetch(`${SERVER_URL}/auth/super-admin/authenticate`, {
+                const response = await fetch(`${SERVER_URL}/api/super-admin/authenticate`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

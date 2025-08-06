@@ -405,7 +405,7 @@
         async function loadDashboard() {
             try {
                 // Load dashboard stats
-                const statsResponse = await fetch(`${SERVER_URL}/auth/super-admin/dashboard`, {
+                const statsResponse = await fetch(`${SERVER_URL}/api/status`, {
                     headers: authHeaders
                 });
 
@@ -416,14 +416,8 @@
                 const stats = await statsResponse.json();
                 renderStats(stats);
 
-                // Load detailed data
-                await Promise.all([
-                    loadAdmins(),
-                    loadStudents(),
-                    loadCollections(),
-                    loadSchedules(),
-                    loadSettings()
-                ]);
+                // Load detailed data - only students for now
+                await loadStudents();
 
                 document.getElementById('loading').style.display = 'none';
                 document.getElementById('dashboard-content').style.display = 'block';
@@ -465,6 +459,10 @@
 
         async function loadAdmins() {
             try {
+                // TODO: Implement admin management API endpoint
+                console.log('Admin management not yet implemented');
+                return;
+                /*
                 const response = await fetch(`${SERVER_URL}/auth/super-admin/admins`, {
                     headers: authHeaders
                 });
@@ -506,6 +504,7 @@
                         </tbody>
                     </table>
                 `;
+                */
             } catch (error) {
                 console.error('Failed to load admins:', error);
             }
@@ -513,10 +512,16 @@
 
         async function loadStudents() {
             try {
-                const response = await fetch(`${SERVER_URL}/auth/super-admin/students`, {
+                const response = await fetch(`${SERVER_URL}/api/super-admin/students`, {
                     headers: authHeaders
                 });
-                const students = await response.json();
+                const result = await response.json();
+                
+                if (!result.success) {
+                    throw new Error(result.error || 'Failed to load students');
+                }
+                
+                const students = result.students;
 
                 const table = document.getElementById('students-table');
                 table.innerHTML = `
@@ -525,24 +530,30 @@
                             <tr>
                                 <th>Name</th>
                                 <th>Email</th>
-                                <th>Institute</th>
                                 <th>Admin</th>
+                                <th>Institute</th>
                                 <th>Last Login</th>
                                 <th>Status</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             ${students.map(student => `
-                                <tr>
+                                <tr id="student-${student.studentId}">
                                     <td>${student.name}</td>
                                     <td>${student.email}</td>
-                                    <td>${student.instituteName}</td>
-                                    <td>${student.adminName}</td>
+                                    <td>${student.adminName || 'No admin'}</td>
+                                    <td>${student.adminInstitution || 'N/A'}</td>
                                     <td>${student.lastLogin ? new Date(student.lastLogin).toLocaleDateString() : 'Never'}</td>
                                     <td>
                                         <span class="badge ${student.isActive ? 'badge-success' : 'badge-danger'}">
                                             ${student.isActive ? 'Active' : 'Inactive'}
                                         </span>
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-danger btn-sm" onclick="deleteStudent('${student.studentId}', '${student.name}')">
+                                            🗑️ Delete
+                                        </button>
                                     </td>
                                 </tr>
                             `).join('')}
@@ -551,11 +562,47 @@
                 `;
             } catch (error) {
                 console.error('Failed to load students:', error);
+                showError('Failed to load students');
+            }
+        }
+
+        async function deleteStudent(studentId, studentName) {
+            if (!confirm(`Are you sure you want to delete student "${studentName}"? This action cannot be undone and will remove all student data including schedules and progress.`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${SERVER_URL}/api/super-admin/students/${studentId}`, {
+                    method: 'DELETE',
+                    headers: authHeaders
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showError(`Student "${studentName}" deleted successfully`, 'success');
+                    // Remove the row from the table
+                    const row = document.getElementById(`student-${studentId}`);
+                    if (row) {
+                        row.remove();
+                    }
+                    // Reload the entire students list to be safe
+                    await loadStudents();
+                } else {
+                    showError(result.error || 'Failed to delete student');
+                }
+            } catch (error) {
+                console.error('Failed to delete student:', error);
+                showError('Failed to delete student');
             }
         }
 
         async function loadCollections() {
             try {
+                // TODO: Implement collections management API endpoint
+                console.log('Collections management not yet implemented');
+                return;
+                /*
                 const response = await fetch(`${SERVER_URL}/auth/super-admin/collections`, {
                     headers: authHeaders
                 });
@@ -584,6 +631,7 @@
                         </tbody>
                     </table>
                 `;
+                */
             } catch (error) {
                 console.error('Failed to load collections:', error);
             }
@@ -591,6 +639,10 @@
 
         async function loadSchedules() {
             try {
+                // TODO: Implement schedules management API endpoint
+                console.log('Schedules management not yet implemented');
+                return;
+                /*
                 const response = await fetch(`${SERVER_URL}/auth/super-admin/schedules`, {
                     headers: authHeaders
                 });
@@ -625,6 +677,7 @@
                         </tbody>
                     </table>
                 `;
+                */
             } catch (error) {
                 console.error('Failed to load schedules:', error);
             }
@@ -632,6 +685,10 @@
 
         async function loadSettings() {
             try {
+                // TODO: Implement system settings API endpoint
+                console.log('System settings not yet implemented');
+                return;
+                /*
                 const response = await fetch(`${SERVER_URL}/auth/super-admin/system-settings`, {
                     headers: authHeaders
                 });
@@ -693,6 +750,7 @@
                         }
                     });
                 }
+                */
             } catch (error) {
                 console.error('Failed to load settings:', error);
             }
