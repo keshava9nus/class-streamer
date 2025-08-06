@@ -365,14 +365,14 @@
                 };
 
                 // Add invite code - generate if not provided
-                if (data.inviteCode.trim()) {
+                if (data.inviteCode && data.inviteCode.trim()) {
                     requestData.inviteCode = data.inviteCode.trim();
                 } else {
                     // Generate a random invite code if not provided
                     requestData.inviteCode = 'AUDIO' + Math.random().toString(36).substr(2, 4).toUpperCase();
                 }
 
-                const response = await fetch(`${SERVER_URL}/admin/register`, {
+                const response = await fetch(`${SERVER_URL}/auth/admin/register`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
