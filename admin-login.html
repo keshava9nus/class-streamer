@@ -357,14 +357,20 @@
                     console.log('✅ Login successful, storing data and redirecting...', result);
                     showAlert('Login successful! Redirecting...', 'success');
                     
+                    // Check if this is a superadmin login
+                    const isSuperAdmin = result.role === 'super-admin' || result.admin.isSuperAdmin;
+                    
                     // Store admin token and info with enhanced error handling
                     let storageSuccess = false;
                     try {
                         localStorage.setItem('adminToken', result.token);
-                        localStorage.setItem('userRole', 'admin');
+                        localStorage.setItem('userRole', isSuperAdmin ? 'super-admin' : 'admin');
                         localStorage.setItem('adminId', result.admin.adminId);
                         localStorage.setItem('adminName', result.admin.name);
                         localStorage.setItem('adminEmail', result.admin.email);
+                        if (isSuperAdmin) {
+                            localStorage.setItem('superAdminToken', result.token);
+                        }
                         console.log('✅ Data stored in localStorage');
                         storageSuccess = true;
                     } catch (error) {
@@ -372,10 +378,13 @@
                         try {
                             // Fallback to sessionStorage for mobile private browsing
                             sessionStorage.setItem('adminToken', result.token);
-                            sessionStorage.setItem('userRole', 'admin');
+                            sessionStorage.setItem('userRole', isSuperAdmin ? 'super-admin' : 'admin');
                             sessionStorage.setItem('adminId', result.admin.adminId);
                             sessionStorage.setItem('adminName', result.admin.name);
                             sessionStorage.setItem('adminEmail', result.admin.email);
+                            if (isSuperAdmin) {
+                                sessionStorage.setItem('superAdminToken', result.token);
+                            }
                             console.log('✅ Data stored in sessionStorage');
                             storageSuccess = true;
                         } catch (sessionError) {
@@ -386,15 +395,16 @@
                     
                     // Enhanced redirect with multiple fallback methods
                     const redirectToAdmin = () => {
-                        console.log('🔄 Attempting redirect to admin panel...');
+                        const targetUrl = isSuperAdmin ? 'super-admin-dashboard.html' : 'admin-ui/index.html';
+                        console.log(`🔄 Attempting redirect to ${isSuperAdmin ? 'super admin' : 'admin'} panel: ${targetUrl}`);
                         try {
                             // Method 1: Standard href redirect
-                            window.location.href = 'admin-ui/index.html';
+                            window.location.href = targetUrl;
                         } catch (redirectError) {
                             console.error('❌ Standard redirect failed, trying alternative:', redirectError);
                             try {
                                 // Method 2: Location replace (no history entry)
-                                window.location.replace('admin-ui/index.html');
+                                window.location.replace(targetUrl);
                             } catch (replaceError) {
                                 console.error('❌ Replace redirect failed, trying assign:', replaceError);
                                 try {

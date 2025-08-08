@@ -375,7 +375,7 @@
 
         // Check authentication
         if (!token) {
-            window.location.href = 'super-admin-login.html';
+            window.location.href = 'admin-login.html';
         }
 
         const authHeaders = {
@@ -383,9 +383,19 @@
             'Content-Type': 'application/json'
         };
 
-        function showError(message) {
+        function showError(message, type = 'error') {
             const container = document.getElementById('error-container');
-            container.innerHTML = `<div class="error">${message}</div>`;
+            const className = type === 'success' ? 'success' : 'error';
+            const bgColor = type === 'success' ? '#c6f6d5' : '#fed7d7';
+            const textColor = type === 'success' ? '#2f855a' : '#c53030';
+            container.innerHTML = `<div class="${className}" style="background: ${bgColor}; color: ${textColor}; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">${message}</div>`;
+            
+            // Auto-clear success messages after 5 seconds
+            if (type === 'success') {
+                setTimeout(() => {
+                    container.innerHTML = '';
+                }, 5000);
+            }
         }
 
         function showTab(tabName) {
@@ -400,12 +410,31 @@
             // Show selected tab
             document.getElementById(`${tabName}-tab`).classList.add('active');
             event.target.classList.add('active');
+            
+            // Load data for the selected tab if needed
+            switch(tabName) {
+                case 'admins':
+                    loadAdmins();
+                    break;
+                case 'students':
+                    loadStudents();
+                    break;
+                case 'collections':
+                    loadCollections();
+                    break;
+                case 'schedules':
+                    loadSchedules();
+                    break;
+                case 'settings':
+                    loadSettings();
+                    break;
+            }
         }
 
         async function loadDashboard() {
             try {
                 // Load dashboard stats
-                const statsResponse = await fetch(`${SERVER_URL}/api/status`, {
+                const statsResponse = await fetch(`${SERVER_URL}/auth/super-admin/dashboard`, {
                     headers: authHeaders
                 });
 
@@ -416,8 +445,14 @@
                 const stats = await statsResponse.json();
                 renderStats(stats);
 
-                // Load detailed data - only students for now
-                await loadStudents();
+                // Load all tabs data
+                await Promise.all([
+                    loadStudents(),
+                    loadAdmins(),
+                    loadCollections(),
+                    loadSchedules(),
+                    loadSettings()
+                ]);
 
                 document.getElementById('loading').style.display = 'none';
                 document.getElementById('dashboard-content').style.display = 'block';
@@ -459,14 +494,16 @@
 
         async function loadAdmins() {
             try {
-                // TODO: Implement admin management API endpoint
-                console.log('Admin management not yet implemented');
-                return;
-                /*
                 const response = await fetch(`${SERVER_URL}/auth/super-admin/admins`, {
                     headers: authHeaders
                 });
-                const admins = await response.json();
+                const result = await response.json();
+                
+                if (!result.success) {
+                    throw new Error(result.error || 'Failed to load admins');
+                }
+                
+                const admins = result.admins;
 
                 const table = document.getElementById('admins-table');
                 table.innerHTML = `
@@ -476,6 +513,7 @@
                                 <th>Name</th>
                                 <th>Institute</th>
                                 <th>Email</th>
+                                <th>Invite Code</th>
                                 <th>Students</th>
                                 <th>Status</th>
                                 <th>Actions</th>
@@ -487,6 +525,7 @@
                                     <td>${admin.name}</td>
                                     <td>${admin.instituteName}</td>
                                     <td>${admin.email}</td>
+                                    <td><code style="background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-family: monospace;">${admin.inviteCode}</code></td>
                                     <td>${admin.studentCount}</td>
                                     <td>
                                         <span class="badge ${admin.isActive ? 'badge-success' : 'badge-danger'}">
@@ -504,7 +543,6 @@
                         </tbody>
                     </table>
                 `;
-                */
             } catch (error) {
                 console.error('Failed to load admins:', error);
             }
@@ -512,7 +550,7 @@
 
         async function loadStudents() {
             try {
-                const response = await fetch(`${SERVER_URL}/api/super-admin/students`, {
+                const response = await fetch(`${SERVER_URL}/auth/super-admin/students`, {
                     headers: authHeaders
                 });
                 const result = await response.json();
@@ -572,7 +610,7 @@
             }
             
             try {
-                const response = await fetch(`${SERVER_URL}/api/super-admin/students/${studentId}`, {
+                const response = await fetch(`${SERVER_URL}/auth/super-admin/students/${studentId}`, {
                     method: 'DELETE',
                     headers: authHeaders
                 });
@@ -599,14 +637,16 @@
 
         async function loadCollections() {
             try {
-                // TODO: Implement collections management API endpoint
-                console.log('Collections management not yet implemented');
-                return;
-                /*
                 const response = await fetch(`${SERVER_URL}/auth/super-admin/collections`, {
                     headers: authHeaders
                 });
-                const collections = await response.json();
+                const result = await response.json();
+                
+                if (!result.success) {
+                    throw new Error(result.error || 'Failed to load collections');
+                }
+                
+                const collections = result.collections;
 
                 const table = document.getElementById('collections-table');
                 table.innerHTML = `
@@ -617,6 +657,7 @@
                                 <th>Admin</th>
                                 <th>Files</th>
                                 <th>Path</th>
+                                <th>Created</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -624,14 +665,18 @@
                                 <tr>
                                     <td>${collection.name}</td>
                                     <td>${collection.adminName || 'Unknown'}</td>
-                                    <td>${collection.files?.length || 0}</td>
-                                    <td title="${collection.path}">${collection.path ? collection.path.substring(0, 50) + '...' : 'No path'}</td>
+                                    <td>
+                                        <span class="badge badge-info">${collection.fileCount || 0} files</span>
+                                    </td>
+                                    <td title="${collection.path}" style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                        <code style="font-size: 0.8em;">${collection.path || 'No path'}</code>
+                                    </td>
+                                    <td>${collection.createdAt ? new Date(collection.createdAt).toLocaleDateString() : 'Unknown'}</td>
                                 </tr>
                             `).join('')}
                         </tbody>
                     </table>
                 `;
-                */
             } catch (error) {
                 console.error('Failed to load collections:', error);
             }
@@ -639,14 +684,16 @@
 
         async function loadSchedules() {
             try {
-                // TODO: Implement schedules management API endpoint
-                console.log('Schedules management not yet implemented');
-                return;
-                /*
                 const response = await fetch(`${SERVER_URL}/auth/super-admin/schedules`, {
                     headers: authHeaders
                 });
-                const schedules = await response.json();
+                const result = await response.json();
+                
+                if (!result.success) {
+                    throw new Error(result.error || 'Failed to load schedules');
+                }
+                
+                const schedules = result.schedules;
 
                 const table = document.getElementById('schedules-table');
                 table.innerHTML = `
@@ -658,6 +705,7 @@
                                 <th>Collection</th>
                                 <th>Status</th>
                                 <th>Time Slots</th>
+                                <th>Created</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -671,13 +719,15 @@
                                             ${schedule.enabled ? 'Enabled' : 'Disabled'}
                                         </span>
                                     </td>
-                                    <td>${schedule.timeSlots?.length || 0}</td>
+                                    <td>
+                                        <span class="badge badge-info">${schedule.timeSlots?.length || 0} slots</span>
+                                    </td>
+                                    <td>${schedule.createdAt ? new Date(schedule.createdAt).toLocaleDateString() : 'Unknown'}</td>
                                 </tr>
                             `).join('')}
                         </tbody>
                     </table>
                 `;
-                */
             } catch (error) {
                 console.error('Failed to load schedules:', error);
             }
@@ -685,57 +735,88 @@
 
         async function loadSettings() {
             try {
-                // TODO: Implement system settings API endpoint
-                console.log('System settings not yet implemented');
-                return;
-                /*
                 const response = await fetch(`${SERVER_URL}/auth/super-admin/system-settings`, {
                     headers: authHeaders
                 });
-                const settings = await response.json();
+                const result = await response.json();
+                
+                if (!result.success) {
+                    throw new Error(result.error || 'Failed to load settings');
+                }
+                
+                const settings = result.settings;
 
                 const content = document.getElementById('settings-content');
                 content.innerHTML = `
-                    <div style="display: grid; gap: 1rem; max-width: 600px;">
-                        <div>
-                            <strong>Timezone:</strong> ${settings.timezone}
-                        </div>
-                        <div>
-                            <strong>JWT Secret:</strong> [Hidden for security]
-                        </div>
-                        <div>
-                            <strong>Admin Registration Secret:</strong> <code style="background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-family: monospace;">${settings.adminRegistrationSecret || 'Not set'}</code>
-                        </div>
-                        <div>
-                            <strong>Email Enabled:</strong> ${settings.emailEnabled ? 'Yes' : 'No'}
-                        </div>
-                        <div>
-                            <strong>SMTP Host:</strong> ${settings.smtpSettings?.host || 'Not configured'}
-                        </div>
-                        <div>
-                            <strong>SMTP Port:</strong> ${settings.smtpSettings?.port || 'Not configured'}
-                        </div>
-                    </div>
-                    
-                    <div style="margin-top: 2rem; padding: 1rem; background: #f8f9fa; border-radius: 8px; max-width: 600px;">
-                        <h3 style="margin-bottom: 1rem; color: #4a5568;">Update Admin Registration Secret</h3>
-                        <form id="update-secret-form" style="display: flex; gap: 1rem; align-items: end;">
-                            <div style="flex: 1;">
-                                <label for="newAdminSecret" style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #4a5568;">New Admin Registration Secret:</label>
-                                <input 
-                                    type="text" 
-                                    id="newAdminSecret" 
-                                    value="${settings.adminRegistrationSecret || ''}"
-                                    style="width: 100%; padding: 0.5rem; border: 1px solid #e2e8f0; border-radius: 4px; font-family: monospace;"
-                                    placeholder="Enter new secret code"
-                                    required
-                                >
+                    <div style="display: grid; gap: 1.5rem; max-width: 800px;">
+                        <div style="background: #f8f9fa; padding: 1.5rem; border-radius: 8px;">
+                            <h3 style="margin-bottom: 1rem; color: #2d3748;">System Configuration</h3>
+                            <div style="display: grid; gap: 1rem;">
+                                <div>
+                                    <strong>Timezone:</strong> ${settings.timezone}
+                                </div>
+                                <div>
+                                    <strong>Server Time:</strong> ${new Date(settings.serverTime).toLocaleString()}
+                                </div>
+                                <div>
+                                    <strong>Email Enabled:</strong> ${settings.emailEnabled ? 'Yes' : 'No'}
+                                </div>
+                                <div>
+                                    <strong>SMTP Host:</strong> ${settings.smtpSettings?.host || 'Not configured'}
+                                </div>
+                                <div>
+                                    <strong>SMTP Port:</strong> ${settings.smtpSettings?.port || 'Not configured'}
+                                </div>
                             </div>
-                            <button type="submit" class="btn btn-primary">Update Secret</button>
-                        </form>
-                        <small style="color: #718096; display: block; margin-top: 0.5rem;">
-                            This secret code is required for new admin registrations. Share it only with authorized institutions.
-                        </small>
+                        </div>
+                        
+                        <div style="background: #f8f9fa; padding: 1.5rem; border-radius: 8px;">
+                            <h3 style="margin-bottom: 1rem; color: #2d3748;">Tunnel Configuration</h3>
+                            <div style="display: grid; gap: 1rem;">
+                                <div>
+                                    <strong>Main Tunnel:</strong> <code style="background: #e2e8f0; padding: 2px 6px; border-radius: 4px;">${settings.tunnels?.main || 'Not configured'}</code>
+                                </div>
+                                <div>
+                                    <strong>Streaming Tunnels:</strong>
+                                    <div style="margin-top: 0.5rem; display: grid; gap: 0.5rem;">
+                                        ${(settings.tunnels?.streaming || []).map(tunnel => `
+                                            <div style="padding: 0.5rem; background: white; border-radius: 4px; border-left: 3px solid ${tunnel.isActive ? '#38a169' : '#e53e3e'};">
+                                                <strong>${tunnel.id}:</strong> <code>${tunnel.url}</code> 
+                                                <span class="badge ${tunnel.isActive ? 'badge-success' : 'badge-danger'}" style="margin-left: 0.5rem;">
+                                                    ${tunnel.isActive ? 'Active' : 'Inactive'}
+                                                </span>
+                                                <span style="margin-left: 0.5rem; color: #718096;">Capacity: ${tunnel.capacity}, Users: ${tunnel.currentUsers}</span>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div style="background: #f8f9fa; padding: 1.5rem; border-radius: 8px;">
+                            <h3 style="margin-bottom: 1rem; color: #2d3748;">Admin Registration</h3>
+                            <div style="margin-bottom: 1rem;">
+                                <strong>Current Registration Secret:</strong> 
+                                <code style="background: #e2e8f0; padding: 4px 8px; border-radius: 4px; font-family: monospace; margin-left: 0.5rem;">${settings.adminRegistrationSecret || 'Not set'}</code>
+                            </div>
+                            <form id="update-secret-form" style="display: flex; gap: 1rem; align-items: end;">
+                                <div style="flex: 1;">
+                                    <label for="newAdminSecret" style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #4a5568;">New Admin Registration Secret:</label>
+                                    <input 
+                                        type="text" 
+                                        id="newAdminSecret" 
+                                        value="${settings.adminRegistrationSecret || ''}"
+                                        style="width: 100%; padding: 0.5rem; border: 1px solid #e2e8f0; border-radius: 4px; font-family: monospace;"
+                                        placeholder="Enter new secret code"
+                                        required
+                                    >
+                                </div>
+                                <button type="submit" class="btn btn-success">Update Secret</button>
+                            </form>
+                            <small style="color: #718096; display: block; margin-top: 0.5rem;">
+                                This secret code is required for new admin registrations. Share it only with authorized institutions.
+                            </small>
+                        </div>
                     </div>
                 `;
                 
@@ -750,7 +831,6 @@
                         }
                     });
                 }
-                */
             } catch (error) {
                 console.error('Failed to load settings:', error);
             }
@@ -874,7 +954,7 @@
                 const result = await response.json();
 
                 if (response.ok && result.success) {
-                    showError(`Admin created successfully! Invite code: ${result.admin.inviteCode}`);
+                    showError(`Admin created successfully! Invite code: ${result.admin.inviteCode}`, 'success');
                     hideAddAdminForm();
                     // Reload admins table
                     await loadAdmins();
