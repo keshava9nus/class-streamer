@@ -279,6 +279,7 @@
                 <div class="tabs">
                     <div class="tab active" onclick="showTab('admins')">Administrators</div>
                     <div class="tab" onclick="showTab('students')">Students</div>
+                    <div class="tab" onclick="showTab('active-users')">Active Users</div>
                     <div class="tab" onclick="showTab('collections')">Collections</div>
                     <div class="tab" onclick="showTab('schedules')">Schedules</div>
                     <div class="tab" onclick="showTab('settings')">Settings</div>
@@ -336,6 +337,36 @@
                         <h2>All Students</h2>
                     </div>
                     <div id="students-table"></div>
+                </div>
+
+                <!-- Active Users Tab -->
+                <div id="active-users-tab" class="tab-content">
+                    <div class="section-header">
+                        <h2>Currently Active Users</h2>
+                        <div style="display: flex; gap: 1rem; align-items: center;">
+                            <button class="btn btn-outline" onclick="refreshActiveUsers()">🔄 Refresh</button>
+                            <div id="active-users-auto-refresh" style="display: flex; align-items: center; gap: 0.5rem;">
+                                <label>
+                                    <input type="checkbox" id="auto-refresh-checkbox" checked onchange="toggleAutoRefresh()">
+                                    Auto-refresh (30s)
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Active Users Statistics -->
+                    <div id="active-users-stats" class="stats-grid" style="margin-bottom: 2rem;">
+                        <!-- Stats will be populated by JavaScript -->
+                    </div>
+                    
+                    <!-- Active Users Table -->
+                    <div id="active-users-table"></div>
+                    
+                    <!-- Tunnel Distribution Visualization -->
+                    <div id="tunnel-distribution" style="margin-top: 2rem;">
+                        <h3 style="margin-bottom: 1rem;">Tunnel Load Distribution</h3>
+                        <div id="tunnel-bars"></div>
+                    </div>
                 </div>
 
                 <!-- Collections Tab -->
@@ -478,6 +509,10 @@
                 case 'students':
                     loadStudents();
                     break;
+                case 'active-users':
+                    loadActiveUsers();
+                    startAutoRefresh(); // Start auto-refresh when viewing active users
+                    break;
                 case 'collections':
                     loadCollections();
                     break;
@@ -492,16 +527,28 @@
 
         async function loadDashboard() {
             try {
-                // Load dashboard stats
-                const statsResponse = await fetch(`${SERVER_URL}/auth/super-admin/dashboard`, {
-                    headers: authHeaders
-                });
+                // Load dashboard stats and active users in parallel
+                const [statsResponse, activeUsersResponse] = await Promise.all([
+                    fetch(`${SERVER_URL}/auth/super-admin/dashboard`, {
+                        headers: authHeaders
+                    }),
+                    fetch(`${SERVER_URL}/auth/super-admin/active-users`, {
+                        headers: authHeaders
+                    })
+                ]);
 
                 if (!statsResponse.ok) {
                     throw new Error('Failed to load dashboard');
                 }
 
                 const stats = await statsResponse.json();
+                
+                // Include active users stats if available
+                if (activeUsersResponse.ok) {
+                    const activeUsersData = await activeUsersResponse.json();
+                    stats.activeUsersStats = activeUsersData.statistics;
+                }
+                
                 renderStats(stats);
 
                 // Load all tabs data
@@ -526,6 +573,7 @@
         function renderStats(data) {
             const statsGrid = document.getElementById('stats-grid');
             const stats = data.systemStats;
+            const activeUsers = data.activeUsersStats || { totalActiveUsers: 0 };
 
             statsGrid.innerHTML = `
                 <div class="stat-card">
@@ -537,6 +585,11 @@
                     <h3>Total Students</h3>
                     <div class="value">${stats.totalStudents}</div>
                     <div class="label">Across all institutes</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Active Users</h3>
+                    <div class="value" style="color: #2f855a;">${activeUsers.totalActiveUsers}</div>
+                    <div class="label">Currently logged in</div>
                 </div>
                 <div class="stat-card">
                     <h3>Collections</h3>
@@ -691,6 +744,198 @@
             } catch (error) {
                 console.error('Failed to delete student:', error);
                 showError('Failed to delete student');
+            }
+        }
+
+        async function loadActiveUsers() {
+            try {
+                const response = await fetch(`${SERVER_URL}/auth/super-admin/active-users`, {
+                    headers: authHeaders
+                });
+                const result = await response.json();
+                
+                if (!result.success) {
+                    throw new Error(result.error || 'Failed to load active users');
+                }
+                
+                const activeUsers = result.activeUsers;
+                const statistics = result.statistics;
+
+                // Update active users statistics
+                updateActiveUsersStats(statistics);
+                
+                // Update tunnel distribution visualization
+                updateTunnelDistribution(statistics.tunnelDistribution);
+
+                const table = document.getElementById('active-users-table');
+                
+                if (activeUsers.length === 0) {
+                    table.innerHTML = `
+                        <div style="text-align: center; padding: 3rem; color: #718096;">
+                            <h3 style="margin-bottom: 1rem;">No Active Users</h3>
+                            <p>Currently no students are logged in to the system.</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                table.innerHTML = `
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Student Name</th>
+                                <th>Email</th>
+                                <th>Institution</th>
+                                <th>Admin</th>
+                                <th>Tunnel</th>
+                                <th>Login Time</th>
+                                <th>Session Duration</th>
+                                <th>Last Activity</th>
+                                <th>Status</th>
+                                <th>IP Address</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${activeUsers.map(user => `
+                                <tr>
+                                    <td><strong>${user.name}</strong></td>
+                                    <td>${user.email}</td>
+                                    <td>${user.instituteName}</td>
+                                    <td>${user.adminName}</td>
+                                    <td>
+                                        <span class="badge badge-info">${user.tunnelId}</span>
+                                    </td>
+                                    <td>${formatDateTime(user.loginTime)}</td>
+                                    <td>${formatDuration(user.sessionDuration)}</td>
+                                    <td>${formatDateTime(user.lastActivity)}</td>
+                                    <td>
+                                        <span class="badge ${user.isActive ? 'badge-success' : 'badge-danger'}">
+                                            ${user.isActive ? 'Active' : 'Inactive'}
+                                        </span>
+                                    </td>
+                                    <td style="font-family: monospace; font-size: 0.8em;">${user.ipAddress || 'Unknown'}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            } catch (error) {
+                console.error('Failed to load active users:', error);
+                showError('Failed to load active users');
+            }
+        }
+
+        function updateActiveUsersStats(statistics) {
+            const statsContainer = document.getElementById('active-users-stats');
+            
+            statsContainer.innerHTML = `
+                <div class="stat-card">
+                    <h3>Total Active Users</h3>
+                    <div style="font-size: 2em; font-weight: 700; color: #2d3748; margin: 0.5rem 0;">
+                        ${statistics.totalActiveUsers}
+                    </div>
+                    <p style="color: #718096; margin: 0;">Currently logged in</p>
+                </div>
+                <div class="stat-card">
+                    <h3>Active Tunnels</h3>
+                    <div style="font-size: 2em; font-weight: 700; color: #2d3748; margin: 0.5rem 0;">
+                        ${Object.keys(statistics.tunnelDistribution).length}
+                    </div>
+                    <p style="color: #718096; margin: 0;">Streaming servers in use</p>
+                </div>
+                <div class="stat-card">
+                    <h3>Load Distribution</h3>
+                    <div style="margin: 0.5rem 0;">
+                        ${Object.entries(statistics.tunnelDistribution).map(([tunnelId, count]) => 
+                            `<div style="display: flex; justify-content: space-between; margin: 0.25rem 0;">
+                                <span>${tunnelId}</span>
+                                <span class="badge badge-info">${count} users</span>
+                            </div>`
+                        ).join('')}
+                    </div>
+                    <p style="color: #718096; margin: 0;">Users per tunnel</p>
+                </div>
+                <div class="stat-card">
+                    <h3>System Load</h3>
+                    <div style="font-size: 2em; font-weight: 700; color: #2d3748; margin: 0.5rem 0;">
+                        ${Math.round((statistics.totalActiveUsers / 20) * 100)}%
+                    </div>
+                    <p style="color: #718096; margin: 0;">Capacity utilization</p>
+                </div>
+            `;
+        }
+
+        function updateTunnelDistribution(tunnelDistribution) {
+            const barsContainer = document.getElementById('tunnel-bars');
+            const maxCapacity = 5; // Each tunnel can handle 5 users
+            
+            barsContainer.innerHTML = Object.entries(tunnelDistribution).map(([tunnelId, count]) => {
+                const percentage = (count / maxCapacity) * 100;
+                const color = percentage > 80 ? '#e53e3e' : percentage > 60 ? '#d69e2e' : '#38a169';
+                
+                return `
+                    <div style="margin-bottom: 1rem;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem;">
+                            <span><strong>${tunnelId}</strong></span>
+                            <span>${count}/${maxCapacity} users</span>
+                        </div>
+                        <div style="background: #e2e8f0; border-radius: 4px; height: 20px; overflow: hidden;">
+                            <div style="background: ${color}; height: 100%; width: ${percentage}%; transition: width 0.3s ease;"></div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function formatDateTime(dateString) {
+            if (!dateString) return 'Unknown';
+            const date = new Date(dateString);
+            return date.toLocaleString();
+        }
+
+        function formatDuration(minutes) {
+            if (minutes < 60) {
+                return `${minutes} min`;
+            } else {
+                const hours = Math.floor(minutes / 60);
+                const remainingMinutes = minutes % 60;
+                return `${hours}h ${remainingMinutes}m`;
+            }
+        }
+
+        // Auto-refresh functionality
+        let autoRefreshInterval;
+
+        function refreshActiveUsers() {
+            console.log('🔄 Refreshing active users data...');
+            loadActiveUsers();
+        }
+
+        function toggleAutoRefresh() {
+            const checkbox = document.getElementById('auto-refresh-checkbox');
+            
+            if (checkbox.checked) {
+                startAutoRefresh();
+            } else {
+                stopAutoRefresh();
+            }
+        }
+
+        function startAutoRefresh() {
+            stopAutoRefresh(); // Clear any existing interval
+            autoRefreshInterval = setInterval(() => {
+                if (document.getElementById('active-users-tab').classList.contains('active')) {
+                    refreshActiveUsers();
+                }
+            }, 30000); // 30 seconds
+            console.log('✅ Auto-refresh started for active users (30s interval)');
+        }
+
+        function stopAutoRefresh() {
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+                autoRefreshInterval = null;
+                console.log('⏹️ Auto-refresh stopped for active users');
             }
         }
 
