@@ -371,11 +371,70 @@
             ? 'http://localhost:8002' 
             : 'https://api.suprexon.space';
 
-        let token = localStorage.getItem('superAdminToken');
-
-        // Check authentication
+        // Check for both superAdminToken (old method) and adminToken (new integrated method)
+        let token = localStorage.getItem('superAdminToken') || localStorage.getItem('adminToken');
+        
+        // Also check sessionStorage as fallback
         if (!token) {
+            token = sessionStorage.getItem('superAdminToken') || sessionStorage.getItem('adminToken');
+        }
+
+        // Check authentication and validate token with server
+        if (!token) {
+            console.log('❌ No authentication token found, redirecting to login');
             window.location.href = 'admin-login.html';
+        } else {
+            // Validate token with server before showing dashboard
+            validateTokenAndLoadDashboard(token);
+        }
+
+        async function validateTokenAndLoadDashboard(authToken) {
+            try {
+                console.log('🔐 Validating authentication token with server...');
+                const response = await fetch(`${SERVER_URL}/auth/super-admin/dashboard`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    console.log(`❌ Token validation failed: ${response.status}`);
+                    throw new Error(`Authentication failed (${response.status})`);
+                }
+
+                const result = await response.json();
+                if (!result.success) {
+                    console.log('❌ Invalid response from server');
+                    throw new Error('Invalid server response');
+                }
+
+                // Token is valid, set global token and continue
+                token = authToken;
+                console.log('✅ Authentication validated successfully');
+                
+                // Initialize dashboard
+                loadDashboard();
+                
+            } catch (error) {
+                console.error('❌ Authentication validation failed:', error);
+                
+                // Show error and hide loading
+                document.getElementById('loading').style.display = 'none';
+                showError(`Authentication failed: ${error.message}. Redirecting to login...`);
+                
+                // Clear invalid tokens
+                localStorage.removeItem('superAdminToken');
+                localStorage.removeItem('adminToken');
+                sessionStorage.removeItem('superAdminToken');
+                sessionStorage.removeItem('adminToken');
+                
+                // Redirect to login after a brief delay
+                setTimeout(() => {
+                    window.location.href = 'admin-login.html';
+                }, 3000);
+            }
         }
 
         const authHeaders = {
@@ -916,7 +975,7 @@
                 });
             }
 
-            loadDashboard();
+            // Dashboard will be loaded after token validation
         });
 
         async function createAdmin() {
