@@ -729,6 +729,42 @@
             </div>
 
             <div class="card">
+                <h3>Account Security</h3>
+                <div style="margin-bottom: 15px;">
+                    <button id="change-password-btn" onclick="showPasswordChangeForm()" class="btn btn-primary">
+                        Change Password
+                    </button>
+                </div>
+                
+                <!-- Password Change Form (Hidden by default) -->
+                <div id="password-change-form" style="display: none; background: #f8f9fa; padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0; margin-top: 15px;">
+                    <h4 style="margin-top: 0; color: #4a5568;">Change Your Password</h4>
+                    <div id="password-change-message" style="margin-bottom: 15px; display: none; padding: 10px; border-radius: 5px;"></div>
+                    
+                    <div class="form-group">
+                        <label>Current Password</label>
+                        <input type="password" id="current-password" placeholder="Enter your current password" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>New Password</label>
+                        <input type="password" id="new-password" placeholder="Enter new password" required minlength="6">
+                        <small style="color: #718096;">Must be at least 6 characters long</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Confirm New Password</label>
+                        <input type="password" id="confirm-password" placeholder="Confirm new password" required>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px;">
+                        <button type="button" class="btn btn-success" onclick="changeAdminPassword()">Update Password</button>
+                        <button type="button" class="btn btn-danger" onclick="hidePasswordChangeForm()">Cancel</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
                 <h3>System Actions</h3>
                 <button type="button" class="btn btn-success" onclick="exportConfig()">Export Configuration</button>
                 <button type="button" class="btn btn-danger" onclick="resetConfig()">Reset to Defaults</button>

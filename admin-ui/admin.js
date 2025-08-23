@@ -1638,3 +1638,92 @@ window.showTab = function(tabName) {
         setTimeout(initializeSystemTab, 100); // Small delay to ensure DOM is ready
     }
 };
+
+// Password change functionality
+function showPasswordChangeForm() {
+    document.getElementById('password-change-form').style.display = 'block';
+    document.getElementById('change-password-btn').style.display = 'none';
+    // Clear previous values
+    document.getElementById('current-password').value = '';
+    document.getElementById('new-password').value = '';
+    document.getElementById('confirm-password').value = '';
+    hidePasswordMessage();
+}
+
+function hidePasswordChangeForm() {
+    document.getElementById('password-change-form').style.display = 'none';
+    document.getElementById('change-password-btn').style.display = 'block';
+    hidePasswordMessage();
+}
+
+function showPasswordMessage(message, isError = false) {
+    const messageDiv = document.getElementById('password-change-message');
+    messageDiv.textContent = message;
+    messageDiv.style.display = 'block';
+    messageDiv.style.background = isError ? '#fed7d7' : '#c6f6d5';
+    messageDiv.style.color = isError ? '#c53030' : '#22543d';
+    messageDiv.style.border = isError ? '1px solid #feb2b2' : '1px solid #9ae6b4';
+}
+
+function hidePasswordMessage() {
+    document.getElementById('password-change-message').style.display = 'none';
+}
+
+async function changeAdminPassword() {
+    const currentPassword = document.getElementById('current-password').value;
+    const newPassword = document.getElementById('new-password').value;
+    const confirmPassword = document.getElementById('confirm-password').value;
+
+    // Validate input
+    if (!currentPassword || !newPassword || !confirmPassword) {
+        showPasswordMessage('Please fill in all password fields.', true);
+        return;
+    }
+
+    if (newPassword.length < 6) {
+        showPasswordMessage('New password must be at least 6 characters long.', true);
+        return;
+    }
+
+    if (newPassword !== confirmPassword) {
+        showPasswordMessage('New password and confirmation do not match.', true);
+        return;
+    }
+
+    try {
+        // Get admin token from localStorage
+        const adminToken = localStorage.getItem('adminToken');
+        if (!adminToken) {
+            showPasswordMessage('No authentication token found. Please log in again.', true);
+            return;
+        }
+
+        const response = await fetch(`${API_BASE}/auth/admin/change-password`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${adminToken}`
+            },
+            body: JSON.stringify({
+                currentPassword: currentPassword,
+                newPassword: newPassword
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            showPasswordMessage('Password changed successfully!', false);
+            // Clear form after success
+            setTimeout(() => {
+                hidePasswordChangeForm();
+            }, 2000);
+        } else {
+            showPasswordMessage(result.error || 'Failed to change password.', true);
+        }
+
+    } catch (error) {
+        console.error('Password change error:', error);
+        showPasswordMessage('Failed to change password. Please try again.', true);
+    }
+}
