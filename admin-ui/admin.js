@@ -1727,3 +1727,431 @@ async function changeAdminPassword() {
         showPasswordMessage('Failed to change password. Please try again.', true);
     }
 }
+
+// ==================================================
+// RELEASE CONTROL FUNCTIONS
+// ==================================================
+
+let currentReleaseCollectionId = null;
+let currentReleaseData = null;
+
+// Show release controls for a collection
+async function showReleaseControls(collectionId) {
+    currentReleaseCollectionId = collectionId;
+    
+    try {
+        // Get collection info and release status
+        const collection = await fetchCollectionById(collectionId);
+        const releaseData = await fetchReleaseStatus(collectionId);
+        
+        if (!collection || !releaseData) {
+            showAlert('Failed to load collection release data', 'error');
+            return;
+        }
+        
+        currentReleaseData = releaseData;
+        
+        // Update UI
+        document.getElementById('release-collection-name').textContent = collection.name;
+        document.getElementById('release-control-section').style.display = 'block';
+        
+        // Update statistics
+        updateReleaseStats(releaseData);
+        
+        // Update release mode buttons
+        updateReleaseModeButtons(releaseData.releaseMode);
+        
+        // Show/hide selective controls based on mode
+        updateModeDescription(releaseData.releaseMode);
+        
+        if (releaseData.releaseMode === 'selective') {
+            document.getElementById('selective-controls').style.display = 'block';
+            renderFileReleaseList(releaseData.files);
+        } else {
+            document.getElementById('selective-controls').style.display = 'none';
+        }
+        
+        // Scroll to release controls
+        document.getElementById('release-control-section').scrollIntoView({ behavior: 'smooth' });
+        
+    } catch (error) {
+        console.error('Error showing release controls:', error);
+        showAlert('Failed to load release controls', 'error');
+    }
+}
+
+// Hide release controls
+function hideReleaseControls() {
+    document.getElementById('release-control-section').style.display = 'none';
+    currentReleaseCollectionId = null;
+    currentReleaseData = null;
+}
+
+// Fetch collection by ID
+async function fetchCollectionById(collectionId) {
+    const adminToken = getStorageItem('adminToken');
+    const response = await fetch(`${API_BASE}/admin/collections/${collectionId}`, {
+        headers: {
+            'Authorization': `Bearer ${adminToken}`,
+            'Content-Type': 'application/json'
+        }
+    });
+    
+    if (!response.ok) {
+        throw new Error(`Failed to fetch collection: ${response.statusText}`);
+    }
+    
+    const result = await response.json();
+    return result.success ? result.collection : null;
+}
+
+// Fetch release status for a collection
+async function fetchReleaseStatus(collectionId) {
+    const adminToken = getStorageItem('adminToken');
+    const response = await fetch(`${API_BASE}/admin/collections/${collectionId}/releases`, {
+        headers: {
+            'Authorization': `Bearer ${adminToken}`,
+            'Content-Type': 'application/json'
+        }
+    });
+    
+    if (!response.ok) {
+        throw new Error(`Failed to fetch release status: ${response.statusText}`);
+    }
+    
+    const result = await response.json();
+    return result.success ? result.data : null;
+}
+
+// Update release statistics display
+function updateReleaseStats(releaseData) {
+    const totalFiles = releaseData.files.length;
+    const releasedFiles = releaseData.files.filter(f => f.isReleased).length;
+    const unreleasedFiles = totalFiles - releasedFiles;
+    const percentage = totalFiles > 0 ? Math.round((releasedFiles / totalFiles) * 100) : 0;
+    
+    document.getElementById('total-files-count').textContent = totalFiles;
+    document.getElementById('released-files-count').textContent = releasedFiles;
+    document.getElementById('unreleased-files-count').textContent = unreleasedFiles;
+    document.getElementById('release-percentage').textContent = percentage + '%';
+}
+
+// Update release mode buttons
+function updateReleaseModeButtons(currentMode) {
+    document.querySelectorAll('.release-mode-btn').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.getAttribute('data-mode') === currentMode) {
+            btn.classList.add('active');
+        }
+    });
+}
+
+// Update mode description
+function updateModeDescription(mode) {
+    const descriptions = {
+        'all': '🌟 All files are automatically available to students. No manual control needed.',
+        'progressive': '📈 Files are released progressively based on the file limit setting. Students see files up to their current position.',
+        'selective': '🎯 You have full manual control over which individual files students can access.'
+    };
+    
+    document.getElementById('mode-description').textContent = descriptions[mode] || 'Select a release mode.';
+}
+
+// Set release mode for collection
+async function setReleaseMode(mode) {
+    if (!currentReleaseCollectionId) return;
+    
+    try {
+        const adminToken = getStorageItem('adminToken');
+        const response = await fetch(`${API_BASE}/admin/collections/${currentReleaseCollectionId}/release-mode`, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${adminToken}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ releaseMode: mode })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`Failed to update release mode: ${response.statusText}`);
+        }
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showAlert(`Release mode updated to: ${mode}`, 'success');
+            
+            // Refresh the release data
+            const updatedData = await fetchReleaseStatus(currentReleaseCollectionId);
+            currentReleaseData = updatedData;
+            
+            // Update UI
+            updateReleaseModeButtons(mode);
+            updateModeDescription(mode);
+            updateReleaseStats(updatedData);
+            
+            // Show/hide selective controls
+            if (mode === 'selective') {
+                document.getElementById('selective-controls').style.display = 'block';
+                renderFileReleaseList(updatedData.files);
+            } else {
+                document.getElementById('selective-controls').style.display = 'none';
+            }
+            
+        } else {
+            throw new Error(result.error || 'Failed to update release mode');
+        }
+        
+    } catch (error) {
+        console.error('Error setting release mode:', error);
+        showAlert(error.message, 'error');
+    }
+}
+
+// Render file release list
+function renderFileReleaseList(files) {
+    const container = document.getElementById('file-release-list');
+    
+    if (!files || files.length === 0) {
+        container.innerHTML = '<p style="text-align: center; color: #718096; padding: 20px;">No files found in this collection.</p>';
+        return;
+    }
+    
+    container.innerHTML = files.map((file, index) => `
+        <div class="file-release-item ${file.isReleased ? 'released' : 'unreleased'}">
+            <input type="checkbox" class="file-checkbox" data-filename="${file.fileName}" 
+                   style="width: auto; margin-right: 10px;">
+            <div class="file-name">${file.fileName}</div>
+            <div class="release-status">${file.isReleased ? '✅ Released' : '🔒 Not Released'}</div>
+            <button class="release-toggle-btn ${file.isReleased ? 'btn-unreleased' : 'btn-release'}"
+                    onclick="toggleFileRelease('${file.fileName}', ${!file.isReleased})">
+                ${file.isReleased ? '🔒 Unreleased' : '✅ Release'}
+            </button>
+        </div>
+    `).join('');
+    
+    // Update bulk action button visibility
+    updateBulkActionButtons();
+}
+
+// Toggle individual file release status
+async function toggleFileRelease(fileName, isReleased) {
+    if (!currentReleaseCollectionId) return;
+    
+    try {
+        const adminToken = getStorageItem('adminToken');
+        const response = await fetch(`${API_BASE}/admin/collections/${currentReleaseCollectionId}/releases`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${adminToken}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                fileName: fileName,
+                isReleased: isReleased,
+                notes: `${isReleased ? 'Released' : 'Unreleased'} by admin via UI`
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`Failed to update file release: ${response.statusText}`);
+        }
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showAlert(`File ${isReleased ? 'released' : 'unreleased'}: ${fileName}`, 'success');
+            
+            // Refresh release data and UI
+            await refreshReleaseStatus();
+            
+        } else {
+            throw new Error(result.error || 'Failed to update file release');
+        }
+        
+    } catch (error) {
+        console.error('Error toggling file release:', error);
+        showAlert(error.message, 'error');
+    }
+}
+
+// Bulk release/unreleased all files
+async function bulkReleaseFiles(isReleased) {
+    if (!currentReleaseCollectionId || !currentReleaseData) return;
+    
+    const fileNames = currentReleaseData.files.map(f => f.fileName);
+    
+    if (fileNames.length === 0) {
+        showAlert('No files to update', 'error');
+        return;
+    }
+    
+    const action = isReleased ? 'release' : 'unreleased';
+    
+    if (!confirm(`Are you sure you want to ${action} all ${fileNames.length} files?`)) {
+        return;
+    }
+    
+    await performBulkRelease(fileNames, isReleased, `Bulk ${action} all files`);
+}
+
+// Bulk release/unreleased selected files
+async function bulkReleaseSelected(isReleased) {
+    const selectedCheckboxes = document.querySelectorAll('.file-checkbox:checked');
+    const fileNames = Array.from(selectedCheckboxes).map(cb => cb.getAttribute('data-filename'));
+    
+    if (fileNames.length === 0) {
+        showAlert('Please select files first', 'error');
+        return;
+    }
+    
+    const action = isReleased ? 'release' : 'unreleased';
+    
+    if (!confirm(`Are you sure you want to ${action} ${fileNames.length} selected files?`)) {
+        return;
+    }
+    
+    await performBulkRelease(fileNames, isReleased, `Bulk ${action} selected files`);
+}
+
+// Perform bulk release operation
+async function performBulkRelease(fileNames, isReleased, notes) {
+    if (!currentReleaseCollectionId) return;
+    
+    try {
+        const adminToken = getStorageItem('adminToken');
+        const response = await fetch(`${API_BASE}/admin/collections/${currentReleaseCollectionId}/releases/bulk`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${adminToken}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                fileNames: fileNames,
+                isReleased: isReleased,
+                notes: notes
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`Failed to bulk update files: ${response.statusText}`);
+        }
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            const action = isReleased ? 'released' : 'unreleased';
+            showAlert(`Successfully ${action} ${fileNames.length} files`, 'success');
+            
+            // Refresh release data and UI
+            await refreshReleaseStatus();
+            
+            // Clear selection
+            document.getElementById('select-all-files').checked = false;
+            
+        } else {
+            throw new Error(result.error || 'Failed to bulk update files');
+        }
+        
+    } catch (error) {
+        console.error('Error in bulk release operation:', error);
+        showAlert(error.message, 'error');
+    }
+}
+
+// Refresh release status
+async function refreshReleaseStatus() {
+    if (!currentReleaseCollectionId) return;
+    
+    try {
+        const updatedData = await fetchReleaseStatus(currentReleaseCollectionId);
+        currentReleaseData = updatedData;
+        
+        // Update UI
+        updateReleaseStats(updatedData);
+        
+        if (updatedData.releaseMode === 'selective') {
+            renderFileReleaseList(updatedData.files);
+        }
+        
+    } catch (error) {
+        console.error('Error refreshing release status:', error);
+        showAlert('Failed to refresh release status', 'error');
+    }
+}
+
+// Toggle select all files
+function toggleSelectAll(checked) {
+    document.querySelectorAll('.file-checkbox').forEach(checkbox => {
+        checkbox.checked = checked;
+    });
+    updateBulkActionButtons();
+}
+
+// Update bulk action button visibility
+function updateBulkActionButtons() {
+    const selectedCheckboxes = document.querySelectorAll('.file-checkbox:checked');
+    const hasSelection = selectedCheckboxes.length > 0;
+    
+    const releaseSelectedBtn = document.getElementById('bulk-release-selected');
+    const unreleasedSelectedBtn = document.getElementById('bulk-unreleased-selected');
+    
+    if (releaseSelectedBtn && unreleasedSelectedBtn) {
+        releaseSelectedBtn.style.display = hasSelection ? 'inline-block' : 'none';
+        unreleasedSelectedBtn.style.display = hasSelection ? 'inline-block' : 'none';
+    }
+}
+
+// Listen for checkbox changes to update bulk action buttons
+document.addEventListener('change', function(e) {
+    if (e.target.classList.contains('file-checkbox')) {
+        updateBulkActionButtons();
+    }
+});
+
+// ==================================================
+// UPDATE COLLECTIONS LIST WITH RELEASE CONTROLS
+// ==================================================
+
+// Override or extend the existing loadCollections function to add release control buttons
+const originalLoadCollections = window.loadCollections;
+window.loadCollections = async function() {
+    // Call original function if it exists
+    if (originalLoadCollections) {
+        await originalLoadCollections();
+    }
+    
+    // Add release control buttons to each collection
+    setTimeout(addReleaseControlButtons, 500); // Small delay to ensure collections are loaded
+};
+
+// Add release control buttons to collection items
+function addReleaseControlButtons() {
+    const collectionItems = document.querySelectorAll('#collections-list .card');
+    
+    collectionItems.forEach(item => {
+        // Check if release button already exists
+        if (item.querySelector('.release-control-btn')) return;
+        
+        // Find the collection ID (usually in a data attribute or button)
+        const deleteBtn = item.querySelector('button[onclick*="deleteCollection"]');
+        if (!deleteBtn) return;
+        
+        const onclickAttr = deleteBtn.getAttribute('onclick');
+        const collectionIdMatch = onclickAttr.match(/deleteCollection\(['"]([^'"]+)['"]\)/);
+        if (!collectionIdMatch) return;
+        
+        const collectionId = collectionIdMatch[1];
+        
+        // Create release control button
+        const releaseBtn = document.createElement('button');
+        releaseBtn.className = 'btn btn-primary release-control-btn';
+        releaseBtn.style.marginLeft = '10px';
+        releaseBtn.innerHTML = '🔓 Release Controls';
+        releaseBtn.onclick = () => showReleaseControls(collectionId);
+        
+        // Add button to the collection item (usually near other buttons)
+        const buttonContainer = deleteBtn.parentElement;
+        buttonContainer.insertBefore(releaseBtn, deleteBtn);
+    });
+}

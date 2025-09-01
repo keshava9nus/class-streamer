@@ -386,6 +386,167 @@
         .btn-secondary:hover {
             background: #cbd5e0;
         }
+
+        /* Release Control Styles */
+        .release-control-section {
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .release-mode-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .release-mode-btn {
+            padding: 10px 20px;
+            border: 2px solid #e2e8f0;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+
+        .release-mode-btn.active {
+            border-color: #667eea;
+            background: #667eea;
+            color: white;
+        }
+
+        .release-mode-btn:hover:not(.active) {
+            border-color: #cbd5e0;
+            background: #f7fafc;
+        }
+
+        .file-release-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .file-release-item {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.3s ease;
+        }
+
+        .file-release-item.released {
+            border-left: 4px solid #48bb78;
+            background: #f0fff4;
+        }
+
+        .file-release-item.unreleased {
+            border-left: 4px solid #f56565;
+            background: #fff5f5;
+        }
+
+        .file-name {
+            flex: 1;
+            font-weight: 500;
+            margin-right: 10px;
+            word-break: break-word;
+        }
+
+        .release-status {
+            font-size: 0.8em;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .released .release-status {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+
+        .unreleased .release-status {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+
+        .release-toggle-btn {
+            margin-left: 10px;
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85em;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-release {
+            background: #48bb78;
+            color: white;
+        }
+
+        .btn-release:hover {
+            background: #38a169;
+        }
+
+        .btn-unreleased {
+            background: #f56565;
+            color: white;
+        }
+
+        .btn-unreleased:hover {
+            background: #e53e3e;
+        }
+
+        .bulk-actions {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .release-stats {
+            background: #e6fffa;
+            border: 1px solid #81e6d9;
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .release-stats h4 {
+            margin: 0 0 10px 0;
+            color: #234e52;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #2d3748;
+        }
+
+        .stat-label {
+            font-size: 0.85em;
+            color: #718096;
+            margin-top: 5px;
+        }
     </style>
 </head>
 <body>
@@ -495,6 +656,88 @@
             <div class="card">
                 <h3>Existing Collections</h3>
                 <div id="collections-list">Loading...</div>
+            </div>
+
+            <!-- Release Control Section -->
+            <div id="release-control-section" class="release-control-section" style="display: none;">
+                <h3>🔓 Release Control for "<span id="release-collection-name">Collection Name</span>"</h3>
+                
+                <div class="release-stats">
+                    <h4>📊 Release Statistics</h4>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-number" id="total-files-count">0</div>
+                            <div class="stat-label">Total Files</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number" id="released-files-count">0</div>
+                            <div class="stat-label">Released</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number" id="unreleased-files-count">0</div>
+                            <div class="stat-label">Unreleased</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number" id="release-percentage">0%</div>
+                            <div class="stat-label">Released %</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 20px;">
+                    <h4>📝 Release Mode</h4>
+                    <div class="release-mode-selector">
+                        <button class="release-mode-btn" data-mode="all" onclick="setReleaseMode('all')">
+                            🌟 All Files (Open Access)
+                        </button>
+                        <button class="release-mode-btn" data-mode="progressive" onclick="setReleaseMode('progressive')">
+                            📈 Progressive (File Limit Based)
+                        </button>
+                        <button class="release-mode-btn" data-mode="selective" onclick="setReleaseMode('selective')">
+                            🎯 Selective (Manual Control)
+                        </button>
+                    </div>
+                    <div style="margin-top: 10px; padding: 10px; background: #f8f9fa; border-radius: 6px; font-size: 0.9em; color: #718096;">
+                        <div id="mode-description">Select a release mode above to control how students access files in this collection.</div>
+                    </div>
+                </div>
+
+                <div id="selective-controls" style="display: none;">
+                    <h4>🎛️ Individual File Controls</h4>
+                    
+                    <div class="bulk-actions">
+                        <button class="btn btn-success" onclick="bulkReleaseFiles(true)">
+                            ✅ Release All Files
+                        </button>
+                        <button class="btn btn-danger" onclick="bulkReleaseFiles(false)">
+                            🔒 Unreleased All Files
+                        </button>
+                        <button class="btn btn-primary" onclick="bulkReleaseSelected(true)" id="bulk-release-selected" style="display: none;">
+                            ✅ Release Selected
+                        </button>
+                        <button class="btn btn-danger" onclick="bulkReleaseSelected(false)" id="bulk-unreleased-selected" style="display: none;">
+                            🔒 Unreleased Selected
+                        </button>
+                        <button class="btn btn-secondary" onclick="refreshReleaseStatus()">
+                            🔄 Refresh Status
+                        </button>
+                    </div>
+
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: flex; align-items: center; gap: 10px; font-size: 0.9em; color: #718096;">
+                            <input type="checkbox" id="select-all-files" onchange="toggleSelectAll(this.checked)" style="width: auto;">
+                            Select all files for bulk operations
+                        </label>
+                    </div>
+
+                    <div id="file-release-list" class="file-release-grid">
+                        <!-- Files will be populated here -->
+                    </div>
+                </div>
+
+                <div style="margin-top: 20px; text-align: right;">
+                    <button class="btn btn-secondary" onclick="hideReleaseControls()">Close Release Controls</button>
+                </div>
             </div>
         </div>
 
